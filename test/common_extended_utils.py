@@ -11,7 +11,6 @@ from torch.utils._pytree import tree_map
 from torchvision.models._api import Weights
 
 aten = torch.ops.aten
-quantized = torch.ops.quantized
 
 
 def get_shape(i):
@@ -110,16 +109,6 @@ def conv_flop(inputs: list[Any], outputs: list[Any]):
     return conv_flop_count(x_shape, w_shape, out_shape, transposed=transposed)
 
 
-def quant_conv_flop(inputs: list[Any], outputs: list[Any]):
-    """
-    Count flops for quantized convolution.
-    """
-    x, w = inputs[:2]
-    x_shape, w_shape, out_shape = (get_shape(x), get_shape(w), get_shape(outputs[0]))
-
-    return conv_flop_count(x_shape, w_shape, out_shape, transposed=False)
-
-
 def transpose_shape(shape):
     return [shape[1], shape[0]] + list(shape[2:])
 
@@ -154,8 +143,6 @@ flop_mapping = {
     aten.convolution: conv_flop,
     aten._convolution: conv_flop,
     aten.convolution_backward: conv_backward_flop,
-    quantized.conv2d: quant_conv_flop,
-    quantized.conv2d_relu: quant_conv_flop,
     aten._scaled_dot_product_flash_attention: scaled_dot_product_flash_attention_flop,
 }
 
