@@ -183,7 +183,7 @@ def ensure_hipified():
     hipify_python.hipify(
         project_directory=str(ROOT_DIR),
         output_directory=str(ROOT_DIR),
-        includes=["torchvision/csrc/ops/cuda/*"],
+        includes=[str(CSRS_DIR / "ops/cuda/*")],
         show_detailed=True,
         is_pytorch_extension=True,
     )
