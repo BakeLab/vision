@@ -10,7 +10,7 @@ import torch.utils.data
 import torchvision
 from PIL import Image
 from torch.utils.data.sampler import BatchSampler, Sampler
-from torch.utils.model_zoo import tqdm
+from tqdm import tqdm
 
 
 def _repeat_to_at_least(iterable, n):
