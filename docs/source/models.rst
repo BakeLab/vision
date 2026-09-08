@@ -135,17 +135,13 @@ use them:
 
     # Initialize models
     m1 = get_model("mobilenet_v3_large", weights=None)
-    m2 = get_model("quantized_mobilenet_v3_large", weights="DEFAULT")
 
     # Fetch weights
-    weights = get_weight("MobileNet_V3_Large_QuantizedWeights.DEFAULT")
-    assert weights == MobileNet_V3_Large_QuantizedWeights.DEFAULT
+    weights = get_weight("MobileNet_V3_Large_Weights.DEFAULT")
+    assert weights == MobileNet_V3_Large_Weights.DEFAULT
 
-    weights_enum = get_model_weights("quantized_mobilenet_v3_large")
-    assert weights_enum == MobileNet_V3_Large_QuantizedWeights
-
-    weights_enum2 = get_model_weights(torchvision.models.quantization.mobilenet_v3_large)
-    assert weights_enum == weights_enum2
+    weights_enum = get_model_weights("mobilenet_v3_large")
+    assert weights_enum == MobileNet_V3_Large_Weights
 
 Here are the available public functions to retrieve models and their corresponding weights:
 
@@ -261,64 +257,6 @@ Table of all available classification weights
 Accuracies are reported on ImageNet-1K using single crops:
 
 .. include:: generated/classification_table.rst
-
-Quantized models
-----------------
-
-.. currentmodule:: torchvision.models.quantization
-
-The following architectures provide support for INT8 quantized models, with or without
-pre-trained weights:
-
-.. toctree::
-   :maxdepth: 1
-
-   models/googlenet_quant
-   models/inception_quant
-   models/mobilenetv2_quant
-   models/mobilenetv3_quant
-   models/resnet_quant
-   models/resnext_quant
-   models/shufflenetv2_quant
-
-|
-
-Here is an example of how to use the pre-trained quantized image classification models:
-
-.. code:: python
-
-    from torchvision.io import decode_image
-    from torchvision.models.quantization import resnet50, ResNet50_QuantizedWeights
-
-    img = decode_image("test/assets/encode_jpeg/grace_hopper_517x606.jpg")
-
-    # Step 1: Initialize model with the best available weights
-    weights = ResNet50_QuantizedWeights.DEFAULT
-    model = resnet50(weights=weights, quantize=True)
-    model.eval()
-
-    # Step 2: Initialize the inference transforms
-    preprocess = weights.transforms()
-
-    # Step 3: Apply inference preprocessing transforms
-    batch = preprocess(img).unsqueeze(0)
-
-    # Step 4: Use the model and print the predicted category
-    prediction = model(batch).squeeze(0).softmax(0)
-    class_id = prediction.argmax().item()
-    score = prediction[class_id].item()
-    category_name = weights.meta["categories"][class_id]
-    print(f"{category_name}: {100 * score}%")
-
-The classes of the pre-trained model outputs can be found at ``weights.meta["categories"]``.
-
-
-Table of all available quantized classification weights
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Accuracies are reported on ImageNet-1K using single crops:
-
-.. include:: generated/classification_quant_table.rst
 
 Semantic Segmentation
 =====================

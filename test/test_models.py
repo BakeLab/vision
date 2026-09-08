@@ -221,11 +221,6 @@ autocast_flaky_numerics = (
     "keypointrcnn_resnet50_fpn",
 )
 
-# The tests for the following quantized models are flaky possibly due to inconsistent
-# rounding errors in different platforms. For this reason the input/output consistency
-# tests under test_quantized_classification_model will be skipped for the following models.
-quantized_flaky_models = ("inception_v3", "resnet50")
-
 # The tests for the following detection models are flaky.
 # We run those tests on float64 to avoid floating point errors.
 # FIXME: we shouldn't have to do that :'/
@@ -892,56 +887,6 @@ def test_video_model(model_fn, dev):
     # Clean up to prevent OOM error that was causing Windows CI to fail.
     del model, x, out
     gc.collect()
-
-
-@pytest.mark.skipif(
-    not (
-        "fbgemm" in torch.backends.quantized.supported_engines
-        and "qnnpack" in torch.backends.quantized.supported_engines
-    ),
-    reason="This Pytorch Build has not been built with fbgemm and qnnpack",
-)
-@pytest.mark.parametrize("model_fn", list_model_fns(models.quantization))
-def test_quantized_classification_model(model_fn):
-    set_rng_seed(0)
-    defaults = {
-        "num_classes": 5,
-        "input_shape": (1, 3, 224, 224),
-        "quantize": True,
-    }
-    model_name = model_fn.__name__
-    kwargs = {**defaults, **_model_params.get(model_name, {})}
-    input_shape = kwargs.pop("input_shape")
-
-    # First check if quantize=True provides models that can run with input data
-    model = model_fn(**kwargs)
-    model.eval()
-    x = torch.rand(input_shape)
-    out = model(x)
-
-    if model_name not in quantized_flaky_models:
-        _assert_expected(out.cpu(), model_name + "_quantized", prec=2e-2)
-        assert out.shape[-1] == 5
-        _check_fx_compatible(model, x, eager_out=out)
-
-    kwargs["quantize"] = False
-    for eval_mode in [True, False]:
-        model = model_fn(**kwargs)
-        if eval_mode:
-            model.eval()
-            model.qconfig = torch.ao.quantization.default_qconfig
-        else:
-            model.train()
-            model.qconfig = torch.ao.quantization.default_qat_qconfig
-
-        model.fuse_model(is_qat=not eval_mode)
-        if eval_mode:
-            torch.ao.quantization.prepare(model, inplace=True)
-        else:
-            torch.ao.quantization.prepare_qat(model, inplace=True)
-            model.eval()
-
-        torch.ao.quantization.convert(model, inplace=True)
 
 
 @pytest.mark.parametrize("model_fn", list_model_fns(models.detection))

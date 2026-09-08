@@ -333,13 +333,6 @@ def store_model_weights(model, checkpoint_path, checkpoint_key="model", strict=T
         model = M.mobilenet_v3_large(weights=None)
         print(store_model_weights(model, './class.pth'))
 
-        # Quantized Classification
-        model = M.quantization.mobilenet_v3_large(weights=None, quantize=False)
-        model.fuse_model(is_qat=True)
-        model.qconfig = torch.ao.quantization.get_default_qat_qconfig('qnnpack')
-        _ = torch.ao.quantization.prepare_qat(model, inplace=True)
-        print(store_model_weights(model, './qat.pth'))
-
         # Object Detection
         model = M.detection.fasterrcnn_mobilenet_v3_large_fpn(weights=None, weights_backbone=None)
         print(store_model_weights(model, './obj.pth'))
