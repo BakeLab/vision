@@ -151,7 +151,6 @@ class ShuffleNetV2(nn.Module):
         self.fc = nn.Linear(output_channels, num_classes)
 
     def _forward_impl(self, x: Tensor) -> Tensor:
-        # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.maxpool(x)
         x = self.stage2(x)

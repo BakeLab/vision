@@ -215,48 +215,7 @@ core functionalities for specific types, e.g. ``resize_bounding_boxes`` or
 <https://github.com/pytorch/vision/blob/main/torchvision/transforms/v2/functional/__init__.py>`_
 to see which ones are available (note that those starting with a leading
 underscore are **not** public!). Kernels are only really useful if you want
-:ref:`torchscript support <transforms_torchscript>` for types like bounding
-boxes or masks.
-
-.. _transforms_torchscript:
-
-Torchscript support
--------------------
-
-Most transform classes and functionals support torchscript. For composing
-transforms, use :class:`torch.nn.Sequential` instead of
-:class:`~torchvision.transforms.v2.Compose`:
-
-.. code:: python
-
-    transforms = torch.nn.Sequential(
-        CenterCrop(10),
-        Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-    )
-    scripted_transforms = torch.jit.script(transforms)
-
-.. warning::
-
-    v2 transforms support torchscript, but if you call ``torch.jit.script()`` on
-    a v2 **class** transform, you'll actually end up with its (scripted) v1
-    equivalent.  This may lead to slightly different results between the
-    scripted and eager executions due to implementation differences between v1
-    and v2.
-
-    If you really need torchscript support for the v2 transforms, we recommend
-    scripting the **functionals** from the
-    ``torchvision.transforms.v2.functional`` namespace to avoid surprises.
-
-
-Also note that the functionals only support torchscript for pure tensors, which
-are always treated as images. If you need torchscript support for other types
-like bounding boxes or masks, you can rely on the :ref:`low-level kernels
-<functional_transforms>`.
-
-For any custom transformations to be used with ``torch.jit.script``, they should
-be derived from ``torch.nn.Module``.
-
-See also: :ref:`sphx_glr_auto_examples_others_plot_scripted_tensor_transforms.py`.
+to directly dispatch functionality for specific input types.
 
 .. _v2_api_ref:
 

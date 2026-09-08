@@ -29,8 +29,7 @@ _DEPRECATION_MSG = (
 
 
 def _warn_deprecated():
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        warnings.warn(_DEPRECATION_MSG, DeprecationWarning)
+    warnings.warn(_DEPRECATION_MSG, DeprecationWarning)
 
 
 def _assert_has_image_ops():
@@ -103,9 +102,8 @@ def read_file(path: str) -> torch.Tensor:
     Returns:
         data (Tensor)
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(read_file)
-        _warn_deprecated()
+    _log_api_usage_once(read_file)
+    _warn_deprecated()
     _assert_has_image_ops()
     data = torch.ops.image.read_file(str(path))
     return data
@@ -132,9 +130,8 @@ def write_file(filename: str, data: torch.Tensor) -> torch.Tensor:
     Returns:
         data (Tensor): the input data, returned as-is.
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(write_file)
-        _warn_deprecated()
+    _log_api_usage_once(write_file)
+    _warn_deprecated()
     _assert_has_image_ops()
     return torch.ops.image.write_file(str(filename), data)
 
@@ -177,9 +174,8 @@ def decode_png(
     Returns:
         output (Tensor[image_channels, image_height, image_width])
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(decode_png)
-        _warn_deprecated()
+    _log_api_usage_once(decode_png)
+    _warn_deprecated()
     _assert_has_image_ops()
     if isinstance(mode, str):
         mode = ImageReadMode[mode.upper()]
@@ -212,9 +208,8 @@ def encode_png(input: torch.Tensor, compression_level: int = 6) -> torch.Tensor:
         Tensor[1]: A one dimensional int8 tensor that contains the raw bytes of the
             PNG file.
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(encode_png)
-        _warn_deprecated()
+    _log_api_usage_once(encode_png)
+    _warn_deprecated()
     _assert_has_image_ops()
     output = torch.ops.image.encode_png(input, compression_level)
     return output
@@ -245,9 +240,8 @@ def write_png(input: torch.Tensor, filename: str, compression_level: int = 6) ->
     Returns:
         output (Tensor): the PNG-encoded data that was written to the file.
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(write_png)
-        _warn_deprecated()
+    _log_api_usage_once(write_png)
+    _warn_deprecated()
     output = encode_png(input, compression_level)
     return write_file(filename, output)
 
@@ -302,9 +296,8 @@ def decode_jpeg(
 
 
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(decode_jpeg)
-        _warn_deprecated()
+    _log_api_usage_once(decode_jpeg)
+    _warn_deprecated()
     _assert_has_image_ops()
     if isinstance(device, str):
         device = torch.device(device)
@@ -361,9 +354,8 @@ def encode_jpeg(
     Returns:
         output (Tensor[1] or list[Tensor[1]]): A (list of) one dimensional uint8 tensor(s) that contain the raw bytes of the JPEG file.
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(encode_jpeg)
-        _warn_deprecated()
+    _log_api_usage_once(encode_jpeg)
+    _warn_deprecated()
     _assert_has_image_ops()
     if quality < 1 or quality > 100:
         raise ValueError("Image quality should be a positive number between 1 and 100")
@@ -405,11 +397,10 @@ def write_jpeg(input: torch.Tensor, filename: str, quality: int = 75) -> torch.T
     Returns:
         output (Tensor): the JPEG-encoded data that was written to the file.
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(write_jpeg)
-        _warn_deprecated()
+    _log_api_usage_once(write_jpeg)
+    _warn_deprecated()
     output = encode_jpeg(input, quality)
-    assert isinstance(output, torch.Tensor)  # Needed for torchscript
+    assert isinstance(output, torch.Tensor)
     return write_file(filename, output)
 
 
@@ -461,9 +452,8 @@ def decode_image(
     Returns:
         output (Tensor[image_channels, image_height, image_width])
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(decode_image)
-        _warn_deprecated()
+    _log_api_usage_once(decode_image)
+    _warn_deprecated()
     _assert_has_image_ops()
     if not isinstance(input, torch.Tensor):
         input = read_file(str(input))
@@ -492,9 +482,8 @@ def read_image(
         on how to migrate your code.
 
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(read_image)
-        _warn_deprecated()
+    _log_api_usage_once(read_image)
+    _warn_deprecated()
     data = read_file(path)
     return decode_image(data, mode, apply_exif_orientation=apply_exif_orientation)
 
@@ -524,9 +513,8 @@ def decode_gif(input: torch.Tensor) -> torch.Tensor:
     Returns:
         output (Tensor[image_channels, image_height, image_width] or Tensor[num_images, image_channels, image_height, image_width])
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(decode_gif)
-        _warn_deprecated()
+    _log_api_usage_once(decode_gif)
+    _warn_deprecated()
     _assert_has_image_ops()
     return torch.ops.image.decode_gif(input)
 
@@ -560,21 +548,13 @@ def decode_webp(
     Returns:
         Decoded image (Tensor[image_channels, image_height, image_width])
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(decode_webp)
-        _warn_deprecated()
+    _log_api_usage_once(decode_webp)
+    _warn_deprecated()
     _assert_has_image_ops()
     if isinstance(mode, str):
         mode = ImageReadMode[mode.upper()]
     return torch.ops.image.decode_webp(input, mode.value)
 
-
-# TODO_AVIF_HEIC: Better support for torchscript. Scripting decode_avif of
-# decode_heic currently fails, mainly because of the logic
-# _load_extra_decoders_once() (using global variables, try/except statements,
-# etc.).
-# The ops (torch.ops.extra_decoders_ns.decode_*) are otherwise torchscript-able,
-# and users who need torchscript can always just wrap those.
 
 # TODO_AVIF_HEIC: decode_image() should work for those. The key technical issue
 # we have here is that the format detection logic of decode_image() is

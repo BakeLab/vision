@@ -52,8 +52,7 @@ def make_grid(
     Returns:
         grid (Tensor): the tensor containing grid of images.
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(make_grid)
+    _log_api_usage_once(make_grid)
     if not torch.is_tensor(tensor):
         if isinstance(tensor, list):
             for t in tensor:
@@ -272,8 +271,7 @@ def save_image(
         **kwargs: Other arguments are documented in ``make_grid``.
     """
 
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(save_image)
+    _log_api_usage_once(save_image)
     grid = make_grid(tensor, **kwargs)
     # Add 0.5 after unnormalizing to [0, 255] to round to the nearest integer
     ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to("cpu", torch.uint8).numpy()
@@ -331,8 +329,7 @@ def draw_bounding_boxes(
     """
     import torchvision.transforms.v2.functional as F  # noqa
 
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(draw_bounding_boxes)
+    _log_api_usage_once(draw_bounding_boxes)
     if not isinstance(image, torch.Tensor):
         raise TypeError(f"Tensor expected, got {type(image)}")
     elif not (image.dtype == torch.uint8 or image.is_floating_point()):
@@ -439,8 +436,7 @@ def draw_segmentation_masks(
         img (Tensor[C, H, W]): Image Tensor, with segmentation masks drawn on top.
     """
 
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(draw_segmentation_masks)
+    _log_api_usage_once(draw_segmentation_masks)
     if not isinstance(image, torch.Tensor):
         raise TypeError(f"The image must be a tensor, got {type(image)}")
     elif not (image.dtype == torch.uint8 or image.is_floating_point()):
@@ -525,8 +521,7 @@ def draw_keypoints(
         img (Tensor[C, H, W]): Image Tensor with keypoints drawn.
     """
 
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(draw_keypoints)
+    _log_api_usage_once(draw_keypoints)
     # validate image
     if not isinstance(image, torch.Tensor):
         raise TypeError(f"The image must be a tensor, got {type(image)}")

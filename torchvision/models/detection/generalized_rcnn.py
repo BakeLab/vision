@@ -2,7 +2,6 @@
 Implements the Generalized R-CNN framework
 """
 
-import warnings
 from collections import OrderedDict
 from typing import Optional, Union
 
@@ -38,10 +37,6 @@ class GeneralizedRCNN(nn.Module):
         self.backbone = backbone
         self.rpn = rpn
         self.roi_heads = roi_heads
-        # used only on torchscript mode
-        self._has_warned = False
-
-    @torch.jit.unused
     def eager_outputs(
         self, losses: dict[str, torch.Tensor], detections: list[dict[str, torch.Tensor]]
     ) -> Union[dict[str, torch.Tensor], list[dict[str, torch.Tensor]]]:
@@ -124,10 +119,4 @@ class GeneralizedRCNN(nn.Module):
         losses.update(detector_losses)
         losses.update(proposal_losses)
 
-        if torch.jit.is_scripting():
-            if not self._has_warned:
-                warnings.warn("RCNN always returns a (Losses, Detections) tuple in scripting")
-                self._has_warned = True
-            return losses, detections
-        else:
-            return self.eager_outputs(losses, detections)
+        return self.eager_outputs(losses, detections)

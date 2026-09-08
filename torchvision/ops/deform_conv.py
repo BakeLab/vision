@@ -60,8 +60,7 @@ def deform_conv2d(
         >>> # returns
         >>>  torch.Size([4, 5, 8, 8])
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(deform_conv2d)
+    _log_api_usage_once(deform_conv2d)
     _assert_has_ops()
     out_channels = weight.shape[0]
 

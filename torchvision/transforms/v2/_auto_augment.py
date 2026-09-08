@@ -9,7 +9,7 @@ from torchvision import transforms as _transforms, tv_tensors
 from torchvision.transforms import _functional_tensor as _FT
 from torchvision.transforms.v2 import AutoAugmentPolicy, functional as F, InterpolationMode, Transform
 from torchvision.transforms.v2.functional._meta import get_size
-from torchvision.transforms.v2.functional._utils import _FillType, _FillTypeJIT
+from torchvision.transforms.v2.functional._utils import _FillType, _FillTypeNormalized
 
 from ._utils import _get_fill, _setup_fill_arg, check_type, is_pure_tensor
 
@@ -28,14 +28,6 @@ class _AutoAugmentBase(Transform):
         self.interpolation = interpolation
         self.fill = fill
         self._fill = _setup_fill_arg(fill)
-
-    def _extract_params_for_v1_transform(self) -> dict[str, Any]:
-        params = super()._extract_params_for_v1_transform()
-
-        if isinstance(params["fill"], dict):
-            raise ValueError(f"{type(self).__name__}() can not be scripted for when `fill` is a dictionary.")
-
-        return params
 
     def _get_random_item(self, dct: dict[str, tuple[Callable, bool]]) -> tuple[str, tuple[Callable, bool]]:
         keys = tuple(dct.keys())
@@ -91,9 +83,8 @@ class _AutoAugmentBase(Transform):
         transform_id: str,
         magnitude: float,
         interpolation: Union[str, InterpolationMode, int],
-        fill: dict[Union[type, str], _FillTypeJIT],
+        fill: dict[Union[type, str], _FillTypeNormalized],
     ) -> ImageOrVideo:
-        # Note: this cast is wrong and is only here to make mypy happy (it disagrees with torchscript)
         image = cast(torch.Tensor, image)
         fill_ = _get_fill(fill, type(image))
 

@@ -6,7 +6,6 @@ import torch
 from torchvision.transforms import functional as _F
 
 
-@torch.jit.unused
 def to_tensor(inpt: Any) -> torch.Tensor:
     """[DEPREACTED] Use to_image() and to_dtype() instead."""
     warnings.warn(

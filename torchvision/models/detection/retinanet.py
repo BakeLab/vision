@@ -1,5 +1,4 @@
 import math
-import warnings
 from collections import OrderedDict
 from functools import partial
 from typing import Any, Callable, Optional
@@ -125,11 +124,6 @@ class RetinaNetClassificationHead(nn.Module):
         self.num_classes = num_classes
         self.num_anchors = num_anchors
 
-        # This is to fix using det_utils.Matcher.BETWEEN_THRESHOLDS in TorchScript.
-        # TorchScript doesn't support class attributes.
-        # https://github.com/pytorch/vision/pull/1697#issuecomment-630255584
-        self.BETWEEN_THRESHOLDS = det_utils.Matcher.BETWEEN_THRESHOLDS
-
     def _load_from_state_dict(
         self,
         state_dict,
@@ -174,7 +168,7 @@ class RetinaNetClassificationHead(nn.Module):
             ] = 1.0
 
             # find indices for which anchors should be ignored
-            valid_idxs_per_image = matched_idxs_per_image != self.BETWEEN_THRESHOLDS
+            valid_idxs_per_image = matched_idxs_per_image != det_utils.Matcher.BETWEEN_THRESHOLDS
 
             # compute the classification loss
             losses.append(
@@ -480,10 +474,6 @@ class RetinaNet(nn.Module):
         self.detections_per_img = detections_per_img
         self.topk_candidates = topk_candidates
 
-        # used only on torchscript mode
-        self._has_warned = False
-
-    @torch.jit.unused
     def eager_outputs(self, losses, detections):
         # type: (dict[str, Tensor], list[dict[str, Tensor]]) -> tuple[dict[str, Tensor], list[dict[str, Tensor]]]
         if self.training:
@@ -667,11 +657,6 @@ class RetinaNet(nn.Module):
             detections = self.postprocess_detections(split_head_outputs, split_anchors, images.image_sizes)
             detections = self.transform.postprocess(detections, images.image_sizes, original_image_sizes)
 
-        if torch.jit.is_scripting():
-            if not self._has_warned:
-                warnings.warn("RetinaNet always returns a (Losses, Detections) tuple in scripting")
-                self._has_warned = True
-            return losses, detections
         return self.eager_outputs(losses, detections)
 
 

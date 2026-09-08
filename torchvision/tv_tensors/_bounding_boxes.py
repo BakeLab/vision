@@ -41,8 +41,6 @@ class BoundingBoxFormat(Enum):
     XYXYXYXY = "XYXYXYXY"
 
 
-# TODO: Once torchscript supports Enums with staticmethod
-# this can be put into BoundingBoxFormat as staticmethod
 def is_rotated_bounding_format(format: BoundingBoxFormat | str) -> bool:
     if isinstance(format, BoundingBoxFormat):
         return (
@@ -56,7 +54,6 @@ def is_rotated_bounding_format(format: BoundingBoxFormat | str) -> bool:
         raise ValueError(f"format should be str or BoundingBoxFormat, got {type(format)}")
 
 
-# This should ideally be a Literal, but torchscript fails.
 CLAMPING_MODE_TYPE = Optional[str]
 
 

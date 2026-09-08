@@ -1,7 +1,7 @@
 import re
 from collections import OrderedDict
 from functools import partial
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -49,40 +49,25 @@ class _DenseLayer(nn.Module):
         bottleneck_output = self.conv1(self.relu1(self.norm1(concated_features)))  # noqa: T484
         return bottleneck_output
 
-    # todo: rewrite when torchscript supports any
     def any_requires_grad(self, input: list[Tensor]) -> bool:
         for tensor in input:
             if tensor.requires_grad:
                 return True
         return False
 
-    @torch.jit.unused  # noqa: T484
     def call_checkpoint_bottleneck(self, input: list[Tensor]) -> Tensor:
         def closure(*inputs):
             return self.bn_function(inputs)
 
         return cp.checkpoint(closure, *input, use_reentrant=False)
 
-    @torch.jit._overload_method  # noqa: F811
-    def forward(self, input: list[Tensor]) -> Tensor:  # noqa: F811
-        pass
-
-    @torch.jit._overload_method  # noqa: F811
-    def forward(self, input: Tensor) -> Tensor:  # noqa: F811
-        pass
-
-    # torchscript does not yet support *args, so we overload method
-    # allowing it to take either a List[Tensor] or single Tensor
-    def forward(self, input: Tensor) -> Tensor:  # noqa: F811
+    def forward(self, input: Union[Tensor, list[Tensor]]) -> Tensor:
         if isinstance(input, Tensor):
             prev_features = [input]
         else:
             prev_features = input
 
         if self.memory_efficient and self.any_requires_grad(prev_features):
-            if torch.jit.is_scripting():
-                raise Exception("Memory Efficient not supported in JIT")
-
             bottleneck_output = self.call_checkpoint_bottleneck(prev_features)
         else:
             bottleneck_output = self.bn_function(prev_features)

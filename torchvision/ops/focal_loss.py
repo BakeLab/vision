@@ -36,8 +36,7 @@ def sigmoid_focal_loss(
     if not (0 <= alpha <= 1) and alpha != -1:
         raise ValueError(f"Invalid alpha value: {alpha}. alpha must be in the range [0,1] or -1 for ignore.")
 
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(sigmoid_focal_loss)
+    _log_api_usage_once(sigmoid_focal_loss)
     p = torch.sigmoid(inputs)
     ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
     p_t = p * targets + (1 - p) * (1 - targets)

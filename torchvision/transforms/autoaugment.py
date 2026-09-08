@@ -529,11 +529,9 @@ class AugMix(torch.nn.Module):
             )
         return s
 
-    @torch.jit.unused
     def _pil_to_tensor(self, img) -> Tensor:
         return F.pil_to_tensor(img)
 
-    @torch.jit.unused
     def _tensor_to_pil(self, img: Tensor):
         return F.to_pil_image(img)
 
