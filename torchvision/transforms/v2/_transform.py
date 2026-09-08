@@ -117,11 +117,7 @@ class Transform(nn.Module):
 
         return ", ".join(extra)
 
-    # This attribute should be set on all transforms that have a v1 equivalent. Doing so enables two things:
-    # 1. In case the v1 transform has a static `get_params` method, it will also be available under the same name on
-    #    the v2 transform. See `__init_subclass__` for details.
-    # 2. The v2 transform will be JIT scriptable. See `_extract_params_for_v1_transform` and `__prepare_scriptable__`
-    #    for details.
+    # If the v1 transform has a static `get_params` method, expose it under the same name on the v2 transform.
     _v1_transform_cls: type[nn.Module] | None = None
 
     def __init_subclass__(cls) -> None:
@@ -129,41 +125,6 @@ class Transform(nn.Module):
         # This method is called after subclassing has happened, i.e. `cls` is the subclass, e.g. `Resize`.
         if cls._v1_transform_cls is not None and hasattr(cls._v1_transform_cls, "get_params"):
             cls.get_params = staticmethod(cls._v1_transform_cls.get_params)  # type: ignore[attr-defined]
-
-    def _extract_params_for_v1_transform(self) -> dict[str, Any]:
-        # This method is called by `__prepare_scriptable__` to instantiate the equivalent v1 transform from the current
-        # v2 transform instance. It extracts all available public attributes that are specific to that transform and
-        # not `nn.Module` in general.
-        # Overwrite this method on the v2 transform class if the above is not sufficient. For example, this might happen
-        # if the v2 transform introduced new parameters that are not support by the v1 transform.
-        common_attrs = nn.Module().__dict__.keys()
-        params = {
-            attr: value
-            for attr, value in self.__dict__.items()
-            if not attr.startswith("_") and attr not in common_attrs
-        }
-        # v1 transforms don't support string interpolation modes, so convert them.
-        if "interpolation" in params and isinstance(params["interpolation"], str):
-            from torchvision.transforms import InterpolationMode
-
-            params["interpolation"] = InterpolationMode(params["interpolation"])
-        return params
-
-    def __prepare_scriptable__(self) -> nn.Module:
-        # This method is called early on when `torch.jit.script`'ing an `nn.Module` instance. If it succeeds, the return
-        # value is used for scripting over the original object that should have been scripted. Since the v1 transforms
-        # are JIT scriptable, and we made sure that for single image inputs v1 and v2 are equivalent, we just return the
-        # equivalent v1 transform here. This of course only makes transforms v2 JIT scriptable as long as transforms v1
-        # is around.
-        if self._v1_transform_cls is None:
-            raise RuntimeError(
-                f"Transform {type(self).__name__} cannot be JIT scripted. "
-                "torchscript is only supported for backward compatibility with transforms "
-                "which are already in torchvision.transforms. "
-                "For torchscript support (on tensors only), you can use the functional API instead."
-            )
-
-        return self._v1_transform_cls(**self._extract_params_for_v1_transform())
 
 
 class _RandomApplyTransform(Transform):

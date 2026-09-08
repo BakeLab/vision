@@ -21,7 +21,6 @@ __all__ = ["GoogLeNet", "GoogLeNetOutputs", "_GoogLeNetOutputs", "GoogLeNet_Weig
 GoogLeNetOutputs = namedtuple("GoogLeNetOutputs", ["logits", "aux_logits2", "aux_logits1"])
 GoogLeNetOutputs.__annotations__ = {"logits": Tensor, "aux_logits2": Optional[Tensor], "aux_logits1": Optional[Tensor]}
 
-# Script annotations failed with _GoogleNetOutputs = namedtuple ...
 # _GoogLeNetOutputs set here for backwards compat
 _GoogLeNetOutputs = GoogLeNetOutputs
 
@@ -162,7 +161,6 @@ class GoogLeNet(nn.Module):
         # N x 1000 (num_classes)
         return x, aux2, aux1
 
-    @torch.jit.unused
     def eager_outputs(self, x: Tensor, aux2: Tensor, aux1: Optional[Tensor]) -> GoogLeNetOutputs:
         if self.training and self.aux_logits:
             return _GoogLeNetOutputs(x, aux2, aux1)
@@ -172,13 +170,7 @@ class GoogLeNet(nn.Module):
     def forward(self, x: Tensor) -> GoogLeNetOutputs:
         x = self._transform_input(x)
         x, aux2, aux1 = self._forward(x)
-        aux_defined = self.training and self.aux_logits
-        if torch.jit.is_scripting():
-            if not aux_defined:
-                warnings.warn("Scripted GoogleNet always returns GoogleNetOutputs Tuple")
-            return GoogLeNetOutputs(x, aux2, aux1)
-        else:
-            return self.eager_outputs(x, aux2, aux1)
+        return self.eager_outputs(x, aux2, aux1)
 
 
 class Inception(nn.Module):

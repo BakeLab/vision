@@ -5,7 +5,6 @@ import torch
 import torch.fx
 from torch import nn, Tensor
 from torch._dynamo.utils import is_compile_supported
-from torch.jit.annotations import BroadcastingList2
 from torch.nn.modules.utils import _pair
 from torchvision.extension import _assert_has_ops, _has_ops
 
@@ -204,7 +203,7 @@ def _roi_align(input, rois, spatial_scale, pooled_height, pooled_width, sampling
 def roi_align(
     input: Tensor,
     boxes: Union[Tensor, list[Tensor]],
-    output_size: BroadcastingList2[int],
+    output_size: Union[int, tuple[int, int], list[int]],
     spatial_scale: float = 1.0,
     sampling_ratio: int = -1,
     aligned: bool = False,
@@ -241,14 +240,13 @@ def roi_align(
     Returns:
         Tensor[K, C, output_size[0], output_size[1]]: The pooled RoIs.
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(roi_align)
+    _log_api_usage_once(roi_align)
     check_roi_boxes_shape(boxes)
     rois = boxes
     output_size = _pair(output_size)
     if not isinstance(rois, torch.Tensor):
         rois = convert_boxes_to_roi_format(rois)
-    if not torch.jit.is_scripting() and input.is_quantized:
+    if input.is_quantized:
         _assert_has_ops()
         input_scale = input.q_scale()
         input_zero_point = input.q_zero_point()
@@ -273,12 +271,11 @@ def roi_align(
         )
         return torch._make_per_tensor_quantized_tensor(out_int, scale=input_scale, zero_point=input_zero_point)
 
-    if not torch.jit.is_scripting():
-        if (
-            not _has_ops()
-            or (torch.are_deterministic_algorithms_enabled() and (input.is_cuda or input.is_mps or input.is_xpu))
-        ) and is_compile_supported(input.device.type):
-            return _roi_align(input, rois, spatial_scale, output_size[0], output_size[1], sampling_ratio, aligned)
+    if (
+        not _has_ops()
+        or (torch.are_deterministic_algorithms_enabled() and (input.is_cuda or input.is_mps or input.is_xpu))
+    ) and is_compile_supported(input.device.type):
+        return _roi_align(input, rois, spatial_scale, output_size[0], output_size[1], sampling_ratio, aligned)
     _assert_has_ops()
     return torch.ops.torchvision.roi_align(
         input, rois, spatial_scale, output_size[0], output_size[1], sampling_ratio, aligned
@@ -292,7 +289,7 @@ class RoIAlign(nn.Module):
 
     def __init__(
         self,
-        output_size: BroadcastingList2[int],
+        output_size: Union[int, tuple[int, int], list[int]],
         spatial_scale: float,
         sampling_ratio: int,
         aligned: bool = False,

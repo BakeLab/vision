@@ -230,7 +230,6 @@ class ConvGRU(nn.Module):
 
 
 def _pass_through_h(h, _):
-    # Declared here for torchscript
     return h
 
 
@@ -349,7 +348,7 @@ class CorrBlock(nn.Module):
         self.num_levels = num_levels
         self.radius = radius
 
-        self.corr_pyramid: list[Tensor] = [torch.tensor(0)]  # useless, but torchscript is otherwise confused :')
+        self.corr_pyramid: list[Tensor] = []
 
         # The neighborhood of a centroid pixel x' is {x' + delta, ||delta||_inf <= radius}
         # so it's a square surrounding x', and its sides have a length of 2 * radius + 1

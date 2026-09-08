@@ -58,8 +58,7 @@ __all__ = [
 
 
 class Compose:
-    """Composes several transforms together. This transform does not support torchscript.
-    Please, see the note below.
+    """Composes several transforms together.
 
     Args:
         transforms (list of ``Transform`` objects): list of transforms to compose.
@@ -71,23 +70,10 @@ class Compose:
         >>>     transforms.ConvertImageDtype(torch.float),
         >>> ])
 
-    .. note::
-        In order to script the transformations, please use ``torch.nn.Sequential`` as below.
-
-        >>> transforms = torch.nn.Sequential(
-        >>>     transforms.CenterCrop(10),
-        >>>     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        >>> )
-        >>> scripted_transforms = torch.jit.script(transforms)
-
-        Make sure to use only scriptable transformations, i.e. that work with ``torch.Tensor``, does not require
-        `lambda` functions or ``PIL.Image``.
-
     """
 
     def __init__(self, transforms):
-        if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-            _log_api_usage_once(self)
+        _log_api_usage_once(self)
         self.transforms = transforms
 
     def __call__(self, img):
@@ -106,8 +92,6 @@ class Compose:
 
 class ToTensor:
     """Convert a PIL Image or ndarray to tensor and scale the values accordingly.
-
-    This transform does not support torchscript.
 
     Converts a PIL Image or numpy.ndarray (H x W x C) in the range
     [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0]
@@ -142,8 +126,6 @@ class ToTensor:
 
 class PILToTensor:
     """Convert a PIL Image to a tensor of the same type - this does not scale values.
-
-    This transform does not support torchscript.
 
     Convert a PIL Image with H height, W width, and C channels to a Tensor of shape (C x H x W).
 
@@ -208,8 +190,6 @@ class ConvertImageDtype(torch.nn.Module):
 
 class ToPILImage:
     """Convert a tensor or an ndarray to PIL Image
-
-    This transform does not support torchscript.
 
     Converts a torch.*Tensor of shape C x H x W or a numpy ndarray of shape
     H x W x C to a PIL Image while adjusting the value range depending on the ``mode``.
@@ -300,8 +280,6 @@ class Resize(torch.nn.Module):
             i.e, if height > width, then image will be rescaled to
             (size * height / width, size).
 
-            .. note::
-                In torchscript mode size as single int is not supported, use a sequence of length 1: ``[size, ]``.
         interpolation (InterpolationMode): Desired interpolation enum defined by
             :class:`torchvision.transforms.InterpolationMode`. Default is ``InterpolationMode.BILINEAR``.
             If input is Tensor, only ``InterpolationMode.NEAREST``, ``InterpolationMode.NEAREST_EXACT``,
@@ -313,8 +291,7 @@ class Resize(torch.nn.Module):
             ``size`` will be overruled so that the longer edge is equal to
             ``max_size``.
             As a result, the smaller edge may be shorter than ``size``. This
-            is only supported if ``size`` is an int (or a sequence of length
-            1 in torchscript mode).
+            is only supported if ``size`` is an int or a sequence of length 1.
         antialias (bool, optional): Whether to apply antialiasing.
             It only affects **tensors** with bilinear or bicubic modes and it is
             ignored otherwise: on PIL images, antialiasing is always applied on
@@ -410,9 +387,6 @@ class Pad(torch.nn.Module):
             on left/right and top/bottom respectively. If a sequence of length 4 is provided
             this is the padding for the left, top, right and bottom borders respectively.
 
-            .. note::
-                In torchscript mode padding as single int is not supported, use a sequence of
-                length 1: ``[padding, ]``.
         fill (number or tuple): Pixel fill value for constant fill. Default is 0. If a tuple of
             length 3, it is used to fill R, G, B channels respectively.
             This value is only used when the padding_mode is constant.
@@ -471,7 +445,7 @@ class Pad(torch.nn.Module):
 
 
 class Lambda:
-    """Apply a user-defined lambda as a transform. This transform does not support torchscript.
+    """Apply a user-defined lambda as a transform.
 
     Args:
         lambd (function): Lambda/function to be used for transform.
@@ -518,18 +492,6 @@ class RandomTransforms:
 class RandomApply(torch.nn.Module):
     """Apply randomly a list of transformations with a given probability.
 
-    .. note::
-        In order to script the transformation, please use ``torch.nn.ModuleList`` as input instead of list/tuple of
-        transforms as shown below:
-
-        >>> transforms = transforms.RandomApply(torch.nn.ModuleList([
-        >>>     transforms.ColorJitter(),
-        >>> ]), p=0.3)
-        >>> scripted_transforms = torch.jit.script(transforms)
-
-        Make sure to use only scriptable transformations, i.e. that work with ``torch.Tensor``, does not require
-        `lambda` functions or ``PIL.Image``.
-
     Args:
         transforms (sequence or torch.nn.Module): list of transformations
         p (float): probability
@@ -559,7 +521,7 @@ class RandomApply(torch.nn.Module):
 
 
 class RandomOrder(RandomTransforms):
-    """Apply a list of transformations in a random order. This transform does not support torchscript."""
+    """Apply a list of transformations in a random order."""
 
     def __call__(self, img):
         order = list(range(len(self.transforms)))
@@ -570,7 +532,7 @@ class RandomOrder(RandomTransforms):
 
 
 class RandomChoice(RandomTransforms):
-    """Apply single transformation randomly picked from a list. This transform does not support torchscript."""
+    """Apply single transformation randomly picked from a list."""
 
     def __init__(self, transforms, p=None):
         super().__init__(transforms)
@@ -602,9 +564,6 @@ class RandomCrop(torch.nn.Module):
             on left/right and top/bottom respectively. If a sequence of length 4 is provided
             this is the padding for the left, top, right and bottom borders respectively.
 
-            .. note::
-                In torchscript mode padding as single int is not supported, use a sequence of
-                length 1: ``[padding, ]``.
         pad_if_needed (boolean): It will pad the image if smaller than the
             desired size to avoid raising an exception. Since cropping is done
             after padding, the padding seems to be done at a random offset.
@@ -867,8 +826,6 @@ class RandomResizedCrop(torch.nn.Module):
             int instead of sequence like (h, w), a square output size ``(size, size)`` is
             made. If provided a sequence of length 1, it will be interpreted as (size[0], size[0]).
 
-            .. note::
-                In torchscript mode size as single int is not supported, use a sequence of length 1: ``[size, ]``.
         scale (tuple of float): Specifies the lower and upper bounds for the random area of the crop,
             before resizing. The scale is defined with respect to the area of the original image.
         ratio (tuple of float): lower and upper bounds for the random aspect ratio of the crop, before
@@ -1210,7 +1167,6 @@ class ColorJitter(torch.nn.Module):
         self.saturation = self._check_input(saturation, "saturation")
         self.hue = self._check_input(hue, "hue", center=0, bound=(-0.5, 0.5), clip_first_on_zero=False)
 
-    @torch.jit.unused
     def _check_input(self, value, name, center=1, bound=(0, float("inf")), clip_first_on_zero=True):
         if isinstance(value, numbers.Number):
             if value < 0:

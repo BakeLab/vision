@@ -74,25 +74,11 @@ class SSDScoringHead(nn.Module):
         self.module_list = module_list
         self.num_columns = num_columns
 
-    def _get_result_from_module_list(self, x: Tensor, idx: int) -> Tensor:
-        """
-        This is equivalent to self.module_list[idx](x),
-        but torchscript doesn't support this yet
-        """
-        num_blocks = len(self.module_list)
-        if idx < 0:
-            idx += num_blocks
-        out = x
-        for i, module in enumerate(self.module_list):
-            if i == idx:
-                out = module(x)
-        return out
-
     def forward(self, x: list[Tensor]) -> Tensor:
         all_results = []
 
         for i, features in enumerate(x):
-            results = self._get_result_from_module_list(features, i)
+            results = self.module_list[i](features)
 
             # Permute output from (N, A * K, H, W) to (N, HWA, K).
             N, _, H, W = results.shape
@@ -240,10 +226,6 @@ class SSD(nn.Module):
         self.topk_candidates = topk_candidates
         self.neg_to_pos_ratio = (1.0 - positive_fraction) / positive_fraction
 
-        # used only on torchscript mode
-        self._has_warned = False
-
-    @torch.jit.unused
     def eager_outputs(
         self, losses: dict[str, Tensor], detections: list[dict[str, Tensor]]
     ) -> tuple[dict[str, Tensor], list[dict[str, Tensor]]]:
@@ -404,11 +386,6 @@ class SSD(nn.Module):
             detections = self.postprocess_detections(head_outputs, anchors, images.image_sizes)
             detections = self.transform.postprocess(detections, images.image_sizes, original_image_sizes)
 
-        if torch.jit.is_scripting():
-            if not self._has_warned:
-                warnings.warn("SSD always returns a (Losses, Detections) tuple in scripting")
-                self._has_warned = True
-            return losses, detections
         return self.eager_outputs(losses, detections)
 
     def postprocess_detections(

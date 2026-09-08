@@ -1,5 +1,4 @@
 import math
-import warnings
 from collections import OrderedDict
 from functools import partial
 from typing import Any, Callable, Optional
@@ -425,10 +424,6 @@ class FCOS(nn.Module):
         self.detections_per_img = detections_per_img
         self.topk_candidates = topk_candidates
 
-        # used only on torchscript mode
-        self._has_warned = False
-
-    @torch.jit.unused
     def eager_outputs(
         self, losses: dict[str, Tensor], detections: list[dict[str, Tensor]]
     ) -> tuple[dict[str, Tensor], list[dict[str, Tensor]]]:
@@ -644,11 +639,6 @@ class FCOS(nn.Module):
             detections = self.postprocess_detections(split_head_outputs, split_anchors, images.image_sizes)
             detections = self.transform.postprocess(detections, images.image_sizes, original_image_sizes)
 
-        if torch.jit.is_scripting():
-            if not self._has_warned:
-                warnings.warn("FCOS always returns a (Losses, Detections) tuple in scripting")
-                self._has_warned = True
-            return losses, detections
         return self.eager_outputs(losses, detections)
 
 

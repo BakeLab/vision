@@ -20,7 +20,6 @@ __all__ = ["Inception3", "InceptionOutputs", "_InceptionOutputs", "Inception_V3_
 InceptionOutputs = namedtuple("InceptionOutputs", ["logits", "aux_logits"])
 InceptionOutputs.__annotations__ = {"logits": Tensor, "aux_logits": Optional[Tensor]}
 
-# Script annotations failed with _GoogleNetOutputs = namedtuple ...
 # _InceptionOutputs set here for backwards compat
 _InceptionOutputs = InceptionOutputs
 
@@ -154,7 +153,6 @@ class Inception3(nn.Module):
         # N x 1000 (num_classes)
         return x, aux
 
-    @torch.jit.unused
     def eager_outputs(self, x: Tensor, aux: Optional[Tensor]) -> InceptionOutputs:
         if self.training and self.aux_logits:
             return InceptionOutputs(x, aux)
@@ -164,13 +162,7 @@ class Inception3(nn.Module):
     def forward(self, x: Tensor) -> InceptionOutputs:
         x = self._transform_input(x)
         x, aux = self._forward(x)
-        aux_defined = self.training and self.aux_logits
-        if torch.jit.is_scripting():
-            if not aux_defined:
-                warnings.warn("Scripted Inception3 always returns Inception3 Tuple")
-            return InceptionOutputs(x, aux)
-        else:
-            return self.eager_outputs(x, aux)
+        return self.eager_outputs(x, aux)
 
 
 class InceptionA(nn.Module):

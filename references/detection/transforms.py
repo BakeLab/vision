@@ -168,12 +168,6 @@ class RandomZoomOut(nn.Module):
             raise ValueError(f"Invalid canvas side range provided {side_range}.")
         self.p = p
 
-    @torch.jit.unused
-    def _get_fill_value(self, is_pil):
-        # type: (bool) -> int
-        # We fake the type to make it work on JIT
-        return tuple(int(x) for x in self.fill) if is_pil else 0
-
     def forward(
         self, image: Tensor, target: Optional[Dict[str, Tensor]] = None
     ) -> Tuple[Tensor, Optional[Dict[str, Tensor]]]:
@@ -198,10 +192,7 @@ class RandomZoomOut(nn.Module):
         right = canvas_width - (left + orig_w)
         bottom = canvas_height - (top + orig_h)
 
-        if torch.jit.is_scripting():
-            fill = 0
-        else:
-            fill = self._get_fill_value(F._is_pil_image(image))
+        fill = tuple(int(x) for x in self.fill) if F._is_pil_image(image) else 0
 
         image = F.pad(image, [left, top, right, bottom], fill=fill)
         if isinstance(image, torch.Tensor):
@@ -566,8 +557,6 @@ class SimpleCopyPaste(torch.nn.Module):
             "targets should be a list of the same size as images",
         )
         for target in targets:
-            # Can not check for instance type dict with inside torch.jit.script
-            # torch._assert(isinstance(target, dict), "targets item should be a dict")
             for k in ["masks", "boxes", "labels"]:
                 torch._assert(k in target, f"Key {k} should be present in targets")
                 torch._assert(isinstance(target[k], torch.Tensor), f"Value for the key {k} should be a tensor")

@@ -148,7 +148,6 @@ class SSDLiteFeatureExtractorMobileNet(nn.Module):
         self.extra = extra
 
     def forward(self, x: Tensor) -> dict[str, Tensor]:
-        # Get feature maps from backbone and extra. Can't be refactored due to JIT limitations.
         output = []
         for block in self.features:
             x = block(x)

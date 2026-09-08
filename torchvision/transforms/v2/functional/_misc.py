@@ -23,9 +23,6 @@ def normalize(
     inplace: bool = False,
 ) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.Normalize` for details."""
-    if torch.jit.is_scripting():
-        return normalize_image(inpt, mean=mean, std=std, inplace=inplace)
-
     _log_api_usage_once(normalize)
 
     kernel = _get_kernel(normalize, type(inpt))
@@ -74,9 +71,6 @@ def normalize_video(video: torch.Tensor, mean: list[float], std: list[float], in
 
 def gaussian_blur(inpt: torch.Tensor, kernel_size: list[int], sigma: Optional[list[float]] = None) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.GaussianBlur` for details."""
-    if torch.jit.is_scripting():
-        return gaussian_blur_image(inpt, kernel_size=kernel_size, sigma=sigma)
-
     _log_api_usage_once(gaussian_blur)
 
     kernel = _get_kernel(gaussian_blur, type(inpt))
@@ -183,9 +177,6 @@ def gaussian_blur_video(
 
 def gaussian_noise(inpt: torch.Tensor, mean: float = 0.0, sigma: float = 0.1, clip: bool = True) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.GaussianNoise`"""
-    if torch.jit.is_scripting():
-        return gaussian_noise_image(inpt, mean=mean, sigma=sigma)
-
     _log_api_usage_once(gaussian_noise)
 
     kernel = _get_kernel(gaussian_noise, type(inpt))
@@ -233,9 +224,6 @@ def _gaussian_noise_pil(
 
 def to_dtype(inpt: torch.Tensor, dtype: torch.dtype = torch.float, scale: bool = False) -> torch.Tensor:
     """See :func:`~torchvision.transforms.v2.ToDtype` for details."""
-    if torch.jit.is_scripting():
-        return to_dtype_image(inpt, dtype=dtype, scale=scale)
-
     _log_api_usage_once(to_dtype)
 
     kernel = _get_kernel(to_dtype, type(inpt))
@@ -269,11 +257,7 @@ def to_dtype_image(image: torch.Tensor, dtype: torch.dtype = torch.float, scale:
         return image.to(dtype)
 
     float_input = image.is_floating_point()
-    if torch.jit.is_scripting():
-        # TODO: remove this branch as soon as `dtype.is_floating_point` is supported by JIT
-        float_output = torch.tensor(0, dtype=dtype).is_floating_point()
-    else:
-        float_output = dtype.is_floating_point
+    float_output = dtype.is_floating_point
 
     if float_input:
         # float to float
@@ -376,7 +360,7 @@ def sanitize_bounding_boxes(
         out (tuple of Tensors): The subset of valid bounding boxes, and the corresponding indexing mask.
         The mask can then be used to subset other tensors (e.g. labels) that are associated with the bounding boxes.
     """
-    if torch.jit.is_scripting() or is_pure_tensor(bounding_boxes):
+    if is_pure_tensor(bounding_boxes):
         if format is None or canvas_size is None:
             raise ValueError(
                 "format and canvas_size cannot be None if bounding_boxes is a pure tensor. "
@@ -473,7 +457,7 @@ def sanitize_keypoints(
         out (tuple of Tensors): The subset of valid keypoints, and the corresponding indexing mask.
         The mask can then be used to subset other tensors (e.g. labels) that are associated with the keypoints.
     """
-    if torch.jit.is_scripting() or is_pure_tensor(key_points):
+    if is_pure_tensor(key_points):
         if canvas_size is None:
             raise ValueError(
                 "canvas_size cannot be None if key_points is a pure tensor. "

@@ -21,9 +21,6 @@ def erase(
     inplace: bool = False,
 ) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomErase` for details."""
-    if torch.jit.is_scripting():
-        return erase_image(inpt, i=i, j=j, h=h, w=w, v=v, inplace=inplace)
-
     _log_api_usage_once(erase)
 
     kernel = _get_kernel(erase, type(inpt))
@@ -60,9 +57,6 @@ def erase_video(
 
 def jpeg(image: torch.Tensor, quality: int) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.JPEG` for details."""
-    if torch.jit.is_scripting():
-        return jpeg_image(image, quality=quality)
-
     _log_api_usage_once(jpeg)
 
     kernel = _get_kernel(jpeg, type(image))
@@ -80,7 +74,6 @@ def jpeg_image(image: torch.Tensor, quality: int) -> torch.Tensor:
 
     images = []
     for i in range(image.shape[0]):
-        # isinstance checks are needed for torchscript.
         encoded_image = encode_jpeg(image[i], quality=quality)
         assert isinstance(encoded_image, torch.Tensor)
         decoded_image = decode_jpeg(encoded_image)

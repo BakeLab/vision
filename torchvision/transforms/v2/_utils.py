@@ -16,7 +16,7 @@ from torchvision._utils import sequence_to_str
 
 from torchvision.transforms.transforms import _check_sequence_input, _setup_angle, _setup_size  # noqa: F401
 from torchvision.transforms.v2.functional import get_dimensions, get_size, is_pure_tensor
-from torchvision.transforms.v2.functional._utils import _FillType, _FillTypeJIT
+from torchvision.transforms.v2.functional._utils import _FillType, _FillTypeNormalized
 
 
 def _setup_number_or_seq(arg: int | float | Sequence[int | float], name: str) -> Sequence[float]:
@@ -48,7 +48,7 @@ def _check_fill_arg(fill: _FillType | dict[type | str, _FillType]) -> None:
             raise TypeError("Got inappropriate fill arg, only Numbers, tuples, lists and dicts are allowed.")
 
 
-def _convert_fill_arg(fill: _FillType) -> _FillTypeJIT:
+def _convert_fill_arg(fill: _FillType) -> _FillTypeNormalized:
     # Fill = 0 is not equivalent to None, https://github.com/pytorch/vision/issues/6517
     # So, we can't reassign fill to 0
     # if fill is None:
@@ -61,7 +61,7 @@ def _convert_fill_arg(fill: _FillType) -> _FillTypeJIT:
     return fill  # type: ignore[return-value]
 
 
-def _setup_fill_arg(fill: _FillType | dict[type | str, _FillType]) -> dict[type | str, _FillTypeJIT]:
+def _setup_fill_arg(fill: _FillType | dict[type | str, _FillType]) -> dict[type | str, _FillTypeNormalized]:
     _check_fill_arg(fill)
 
     if isinstance(fill, dict):

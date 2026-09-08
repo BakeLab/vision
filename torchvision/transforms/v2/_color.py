@@ -96,9 +96,6 @@ class ColorJitter(Transform):
 
     _v1_transform_cls = _transforms.ColorJitter
 
-    def _extract_params_for_v1_transform(self) -> dict[str, Any]:
-        return {attr: value or 0 for attr, value in super()._extract_params_for_v1_transform().items()}
-
     def __init__(
         self,
         brightness: Optional[Union[float, Sequence[float]]] = None,
@@ -323,11 +320,6 @@ class RandomSolarize(_RandomApplyTransform):
     """
 
     _v1_transform_cls = _transforms.RandomSolarize
-
-    def _extract_params_for_v1_transform(self) -> dict[str, Any]:
-        params = super()._extract_params_for_v1_transform()
-        params["threshold"] = float(params["threshold"])
-        return params
 
     def __init__(self, threshold: float, p: float = 0.5) -> None:
         super().__init__(p=p)

@@ -68,9 +68,7 @@ def convert_image_dtype(image: torch.Tensor, dtype: torch.dtype = torch.float) -
         return image
 
     if image.is_floating_point():
-
-        # TODO: replace with dtype.is_floating_point when torchscript supports it
-        if torch.tensor(0, dtype=dtype).is_floating_point():
+        if dtype.is_floating_point:
             return image.to(dtype)
 
         # float to int
@@ -93,8 +91,7 @@ def convert_image_dtype(image: torch.Tensor, dtype: torch.dtype = torch.float) -
         input_max = float(_max_value(image.dtype))
 
         # int to float
-        # TODO: replace with dtype.is_floating_point when torchscript supports it
-        if torch.tensor(0, dtype=dtype).is_floating_point():
+        if dtype.is_floating_point:
             image = image.to(dtype)
             return image / input_max
 
@@ -102,14 +99,12 @@ def convert_image_dtype(image: torch.Tensor, dtype: torch.dtype = torch.float) -
 
         # int to int
         if input_max > output_max:
-            # factor should be forced to int for torch jit script
-            # otherwise factor is a float and image // factor can produce different results
+            # Keep factor integral so image // factor uses integer arithmetic.
             factor = int((input_max + 1) // (output_max + 1))
             image = torch.div(image, factor, rounding_mode="floor")
             return image.to(dtype)
         else:
-            # factor should be forced to int for torch jit script
-            # otherwise factor is a float and image * factor can produce different results
+            # Keep factor integral so image * factor uses integer arithmetic.
             factor = int((output_max + 1) // (input_max + 1))
             image = image.to(dtype)
             return image * factor
@@ -354,9 +349,6 @@ def _pad_symmetric(img: Tensor, padding: list[int]) -> Tensor:
 
 def _parse_pad_padding(padding: Union[int, list[int]]) -> list[int]:
     if isinstance(padding, int):
-        if torch.jit.is_scripting():
-            # This maybe unreachable
-            raise ValueError("padding can't be an int while torchscripting, set it as a list [value, ]")
         pad_left = pad_right = pad_top = pad_bottom = padding
     elif len(padding) == 1:
         pad_left = pad_right = pad_top = pad_bottom = padding[0]
@@ -391,8 +383,6 @@ def pad(
         padding = list(padding)
 
     if isinstance(padding, list):
-        # TODO: Jit is failing on loading this op when scripted and saved
-        # https://github.com/pytorch/pytorch/issues/81100
         if len(padding) not in [1, 2, 4]:
             raise ValueError(
                 f"Padding must be an int or a 1, 2, or 4 element tuple, not a {len(padding)} element tuple"
@@ -786,7 +776,7 @@ def posterize(img: Tensor, bits: int) -> Tensor:
         raise TypeError(f"Only torch.uint8 image tensors are supported, but found {img.dtype}")
 
     _assert_channels(img, [1, 3])
-    mask = -int(2 ** (8 - bits))  # JIT-friendly for: ~(2 ** (8 - bits) - 1)
+    mask = -int(2 ** (8 - bits))
     return img & mask
 
 

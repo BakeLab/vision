@@ -13,8 +13,6 @@ from torchvision.transforms.v2._utils import is_pure_tensor
 class PILToTensor(Transform):
     """Convert a PIL Image to a tensor of the same type - this does not scale values.
 
-    This transform does not support torchscript.
-
     Convert a PIL Image with H height, W width, and C channels to a Tensor of shape (C x H x W).
 
     Example:
@@ -35,8 +33,6 @@ class PILToTensor(Transform):
 class ToImage(Transform):
     """Convert a tensor, ndarray, or PIL Image to :class:`~torchvision.tv_tensors.Image`
     ; this does not scale values.
-
-    This transform does not support torchscript.
     """
 
     _transformed_types = (is_pure_tensor, PIL.Image.Image, np.ndarray)
@@ -49,8 +45,6 @@ class ToImage(Transform):
 
 class ToPILImage(Transform):
     """Convert a tensor or an ndarray to PIL Image
-
-    This transform does not support torchscript.
 
     Converts a torch.*Tensor of shape C x H x W or a numpy ndarray of shape
     H x W x C to a PIL Image while adjusting the value range depending on the ``mode``.

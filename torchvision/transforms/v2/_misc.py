@@ -30,8 +30,6 @@ class Identity(Transform):
 class Lambda(Transform):
     """Apply a user-defined function as a transform.
 
-    This transform does not support torchscript.
-
     Args:
         lambd (function): Lambda/function to be used for transform.
     """
