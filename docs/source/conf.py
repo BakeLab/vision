@@ -373,7 +373,7 @@ def inject_weight_metadata(app, what, name, obj, options, lines):
       used within the autoclass directive.
     """
 
-    if getattr(obj, "__name__", "").endswith(("_Weights", "_QuantizedWeights")):
+    if getattr(obj, "__name__", "").endswith("_Weights"):
 
         if len(obj) == 0:
             lines[:] = ["There are no available pre-trained weights."]
@@ -419,7 +419,7 @@ def inject_weight_metadata(app, what, name, obj, options, lines):
                     v = f"{v_sample}, ... ({len(v)-max_visible} omitted)" if len(v) > max_visible else v_sample
                 elif k == "_ops":
                     v = f"{v:.2f}"
-                    k = "GIPS" if obj.__name__.endswith("_QuantizedWeights") else "GFLOPS"
+                    k = "GFLOPS"
                 elif k == "_file_size":
                     k = "File size"
                     v = f"{v:.1f} MB"
@@ -438,8 +438,7 @@ def inject_weight_metadata(app, what, name, obj, options, lines):
 
 
 def generate_weights_table(module, table_name, metrics, dataset, include_patterns=None, exclude_patterns=None):
-    weights_endswith = "_QuantizedWeights" if module.__name__.split(".")[-1] == "quantization" else "_Weights"
-    weight_enums = [getattr(module, name) for name in dir(module) if name.endswith(weights_endswith)]
+    weight_enums = [getattr(module, name) for name in dir(module) if name.endswith("_Weights")]
     weights = [w for weight_enum in weight_enums for w in weight_enum]
 
     if include_patterns is not None:
@@ -447,10 +446,8 @@ def generate_weights_table(module, table_name, metrics, dataset, include_pattern
     if exclude_patterns is not None:
         weights = [w for w in weights if all(p not in str(w) for p in exclude_patterns)]
 
-    ops_name = "GIPS" if "QuantizedWeights" in weights_endswith else "GFLOPS"
-
     metrics_keys, metrics_names = zip(*metrics)
-    column_names = ["Weight"] + list(metrics_names) + ["Params"] + [ops_name, "Recipe"]  # Final column order
+    column_names = ["Weight"] + list(metrics_names) + ["Params", "GFLOPS", "Recipe"]  # Final column order
     column_names = [f"**{name}**" for name in column_names]  # Add bold
 
     content = []
@@ -481,12 +478,6 @@ def generate_weights_table(module, table_name, metrics, dataset, include_pattern
 
 generate_weights_table(
     module=M, table_name="classification", metrics=[("acc@1", "Acc@1"), ("acc@5", "Acc@5")], dataset="ImageNet-1K"
-)
-generate_weights_table(
-    module=M.quantization,
-    table_name="classification_quant",
-    metrics=[("acc@1", "Acc@1"), ("acc@5", "Acc@5")],
-    dataset="ImageNet-1K",
 )
 generate_weights_table(
     module=M.detection,

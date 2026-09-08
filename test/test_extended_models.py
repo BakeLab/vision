@@ -23,7 +23,6 @@ run_if_test_with_extended = pytest.mark.skipif(
         ("resnet50", models.ResNet),
         ("retinanet_resnet50_fpn_v2", models.detection.RetinaNet),
         ("raft_large", models.optical_flow.RAFT),
-        ("quantized_resnet50", models.quantization.QuantizableResNet),
         ("lraspp_mobilenet_v3_large", models.segmentation.LRASPP),
         ("mvit_v1_b", models.video.MViT),
     ],
@@ -38,7 +37,6 @@ def test_get_model(name, model_class):
         ("resnet50", models.resnet50),
         ("retinanet_resnet50_fpn_v2", models.detection.retinanet_resnet50_fpn_v2),
         ("raft_large", models.optical_flow.raft_large),
-        ("quantized_resnet50", models.quantization.resnet50),
         ("lraspp_mobilenet_v3_large", models.segmentation.lraspp_mobilenet_v3_large),
         ("mvit_v1_b", models.video.mvit_v1_b),
     ],
@@ -53,7 +51,6 @@ def test_get_model_builder(name, model_fn):
         ("resnet50", models.ResNet50_Weights),
         ("retinanet_resnet50_fpn_v2", models.detection.RetinaNet_ResNet50_FPN_V2_Weights),
         ("raft_large", models.optical_flow.Raft_Large_Weights),
-        ("quantized_resnet50", models.quantization.ResNet50_QuantizedWeights),
         ("lraspp_mobilenet_v3_large", models.segmentation.LRASPP_MobileNet_V3_Large_Weights),
         ("mvit_v1_b", models.video.MViT_V1_B_Weights),
     ],
@@ -69,7 +66,6 @@ def test_get_model_weights(name, weight):
         "resnet50",
         "retinanet_resnet50_fpn_v2",
         "raft_large",
-        "quantized_resnet50",
         "lraspp_mobilenet_v3_large",
         "mvit_v1_b",
     ],
@@ -89,7 +85,6 @@ def test_weights_copyable(copy_fn, name):
         "resnet50",
         "retinanet_resnet50_fpn_v2",
         "raft_large",
-        "quantized_resnet50",
         "lraspp_mobilenet_v3_large",
         "mvit_v1_b",
     ],
@@ -111,12 +106,10 @@ def get_models_from_module(module):
     ]
 
 
-@pytest.mark.parametrize(
-    "module", [models, models.detection, models.quantization, models.segmentation, models.video, models.optical_flow]
-)
+@pytest.mark.parametrize("module", [models, models.detection, models.segmentation, models.video, models.optical_flow])
 def test_list_models(module):
     a = set(get_models_from_module(module))
-    b = {x.replace("quantized_", "") for x in models.list_models(module)}
+    b = set(models.list_models(module))
 
     assert len(b) > 0
     assert a == b
@@ -186,14 +179,6 @@ def test_list_models_filters(include_filters, exclude_filters):
     [
         ("ResNet50_Weights.IMAGENET1K_V1", models.ResNet50_Weights.IMAGENET1K_V1),
         ("ResNet50_Weights.DEFAULT", models.ResNet50_Weights.IMAGENET1K_V2),
-        (
-            "ResNet50_QuantizedWeights.DEFAULT",
-            models.quantization.ResNet50_QuantizedWeights.IMAGENET1K_FBGEMM_V2,
-        ),
-        (
-            "ResNet50_QuantizedWeights.IMAGENET1K_FBGEMM_V1",
-            models.quantization.ResNet50_QuantizedWeights.IMAGENET1K_FBGEMM_V1,
-        ),
     ],
 )
 def test_get_weight(name, weight):
@@ -204,7 +189,6 @@ def test_get_weight(name, weight):
     "model_fn",
     TM.list_model_fns(models)
     + TM.list_model_fns(models.detection)
-    + TM.list_model_fns(models.quantization)
     + TM.list_model_fns(models.segmentation)
     + TM.list_model_fns(models.video)
     + TM.list_model_fns(models.optical_flow),
@@ -235,7 +219,6 @@ detection_models_input_dims = {
     "model_fn",
     TM.list_model_fns(models)
     + TM.list_model_fns(models.detection)
-    + TM.list_model_fns(models.quantization)
     + TM.list_model_fns(models.segmentation)
     + TM.list_model_fns(models.video)
     + TM.list_model_fns(models.optical_flow),
@@ -256,7 +239,6 @@ def test_schema_meta_validation(model_fn):
         "min_temporal_size",
         "num_params",
         "recipe",
-        "unquantized",
         "_docs",
         "_ops",
         "_file_size",
@@ -267,7 +249,6 @@ def test_schema_meta_validation(model_fn):
         "all": {"_metrics", "min_size", "num_params", "recipe", "_docs", "_file_size", "_ops"},
         "models": classification_fields,
         "detection": {"categories", ("_metrics", "COCO-val2017", "box_map")},
-        "quantization": classification_fields | {"backend", "unquantized"},
         "segmentation": {
             "categories",
             ("_metrics", "COCO-val2017-VOC-labels", "miou"),
@@ -300,36 +281,22 @@ def test_schema_meta_validation(model_fn):
             problematic_weights[w] = {"missing": missing_fields, "unsupported": unsupported_fields}
 
         if w == weights_enum.DEFAULT or any(w.meta[k] != weights_enum.DEFAULT.meta[k] for k in ["num_params", "_ops"]):
-            if module_name == "quantization":
-                # parameters() count doesn't work well with quantization, so we check against the non-quantized
-                unquantized_w = w.meta.get("unquantized")
-                if unquantized_w is not None:
-                    if w.meta.get("num_params") != unquantized_w.meta.get("num_params"):
-                        incorrect_meta.append((w, "num_params"))
+            model = model_fn(weights=w)
 
-                    # the methodology for quantized ops count doesn't work as well, so we take unquantized FLOPs
-                    # instead
-                    if w.meta["_ops"] != unquantized_w.meta.get("_ops"):
-                        incorrect_meta.append((w, "_ops"))
+            if w.meta.get("num_params") != sum(p.numel() for p in model.parameters()):
+                incorrect_meta.append((w, "num_params"))
 
-            else:
-                # loading the model and using it for parameter and ops verification
-                model = model_fn(weights=w)
+            kwargs = {}
+            if model_name in detection_models_input_dims:
+                # detection models have non default height and width
+                height, width = detection_models_input_dims[model_name]
+                kwargs = {"height": height, "width": width}
 
-                if w.meta.get("num_params") != sum(p.numel() for p in model.parameters()):
-                    incorrect_meta.append((w, "num_params"))
-
-                kwargs = {}
-                if model_name in detection_models_input_dims:
-                    # detection models have non default height and width
-                    height, width = detection_models_input_dims[model_name]
-                    kwargs = {"height": height, "width": width}
-
-                if not model_fn.__name__.startswith("vit"):
-                    # FIXME: https://github.com/pytorch/vision/issues/7871
-                    calculated_ops = get_ops(model=model, weight=w, **kwargs)
-                    if calculated_ops != w.meta["_ops"]:
-                        incorrect_meta.append((w, "_ops"))
+            if not model_fn.__name__.startswith("vit"):
+                # FIXME: https://github.com/pytorch/vision/issues/7871
+                calculated_ops = get_ops(model=model, weight=w, **kwargs)
+                if calculated_ops != w.meta["_ops"]:
+                    incorrect_meta.append((w, "_ops"))
 
         if not w.name.isupper():
             bad_names.append(w)
@@ -346,7 +313,6 @@ def test_schema_meta_validation(model_fn):
     "model_fn",
     TM.list_model_fns(models)
     + TM.list_model_fns(models.detection)
-    + TM.list_model_fns(models.quantization)
     + TM.list_model_fns(models.segmentation)
     + TM.list_model_fns(models.video)
     + TM.list_model_fns(models.optical_flow),
@@ -364,9 +330,6 @@ def test_transforms(model_fn):
         },
         "detection": {
             "input_shape": (3, 300, 300),
-        },
-        "quantization": {
-            "input_shape": (1, 3, 224, 224),
         },
         "segmentation": {
             "input_shape": (1, 3, 520, 520),
@@ -488,7 +451,6 @@ class TestHandleLegacyInterface:
         "model_fn",
         [fn for fn in TM.list_model_fns(models) if fn.__name__ not in {"vit_h_14", "regnet_y_128gf"}]
         + TM.list_model_fns(models.detection)
-        + TM.list_model_fns(models.quantization)
         + TM.list_model_fns(models.segmentation)
         + TM.list_model_fns(models.video)
         + TM.list_model_fns(models.optical_flow)
