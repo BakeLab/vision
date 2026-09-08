@@ -509,8 +509,6 @@ def fasterrcnn_resnet50_fpn(
 
     For more details on the output, you may refer to :ref:`instance_seg_output`.
 
-    Faster R-CNN is exportable to ONNX for a fixed batch size with inputs images of fixed size.
-
     Example::
 
         >>> model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT)
@@ -530,9 +528,6 @@ def fasterrcnn_resnet50_fpn(
         >>> model.eval()
         >>> x = [torch.rand(3, 300, 400), torch.rand(3, 500, 400)]
         >>> predictions = model(x)
-        >>>
-        >>> # optionally, if you want to export the model to ONNX:
-        >>> torch.onnx.export(model, x, "faster_rcnn.onnx", opset_version = 11)
 
     Args:
         weights (:class:`~torchvision.models.detection.FasterRCNN_ResNet50_FPN_Weights`, optional): The

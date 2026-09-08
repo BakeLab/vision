@@ -1,7 +1,5 @@
 from modulefinder import Module
 
-import torch
-
 # Don't re-order these, we need to load the _C_stable extension (done when importing
 # .extension) before entering _meta_registrations.
 from . import extension  # usort:skip  # noqa: F401
@@ -70,10 +68,6 @@ def get_video_backend():
     """
 
     return _video_backend
-
-
-def _is_tracing():
-    return torch._C._get_tracing_state()
 
 
 def disable_beta_transforms_warning():
