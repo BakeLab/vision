@@ -1,7 +1,7 @@
 import importlib.machinery
 import os
 
-from torch.hub import _get_torch_home
+from torch.hub import _get_torch_home, load_state_dict_from_url
 
 
 _HOME = os.path.join(_get_torch_home(), "datasets", "vision")
@@ -15,12 +15,6 @@ def _download_file_from_remote_location(fpath: str, url: str) -> None:
 
 def _is_remote_location_available() -> bool:
     return False
-
-
-try:
-    from torch.hub import load_state_dict_from_url  # noqa: 401
-except ImportError:
-    from torch.utils.model_zoo import load_url as load_state_dict_from_url  # noqa: 401
 
 
 def _get_extension_path(lib_name):
