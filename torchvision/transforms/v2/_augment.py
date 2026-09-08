@@ -46,12 +46,6 @@ class RandomErasing(_RandomApplyTransform):
 
     _v1_transform_cls = _transforms.RandomErasing
 
-    def _extract_params_for_v1_transform(self) -> dict[str, Any]:
-        return dict(
-            super()._extract_params_for_v1_transform(),
-            value="random" if self.value is None else self.value,
-        )
-
     def __init__(
         self,
         p: float = 0.5,

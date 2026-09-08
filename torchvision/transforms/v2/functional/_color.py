@@ -14,9 +14,6 @@ from ._utils import _get_kernel, _register_kernel_internal
 
 def rgb_to_grayscale(inpt: torch.Tensor, num_output_channels: int = 1) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.Grayscale` for details."""
-    if torch.jit.is_scripting():
-        return rgb_to_grayscale_image(inpt, num_output_channels=num_output_channels)
-
     _log_api_usage_once(rgb_to_grayscale)
 
     kernel = _get_kernel(rgb_to_grayscale, type(inpt))
@@ -65,9 +62,6 @@ def _rgb_to_grayscale_image_pil(image: PIL.Image.Image, num_output_channels: int
 
 def grayscale_to_rgb(inpt: torch.Tensor) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RGB` for details."""
-    if torch.jit.is_scripting():
-        return grayscale_to_rgb_image(inpt)
-
     _log_api_usage_once(grayscale_to_rgb)
 
     kernel = _get_kernel(grayscale_to_rgb, type(inpt))
@@ -99,9 +93,6 @@ def _blend(image1: torch.Tensor, image2: torch.Tensor, ratio: float) -> torch.Te
 
 def adjust_brightness(inpt: torch.Tensor, brightness_factor: float) -> torch.Tensor:
     """Adjust brightness."""
-
-    if torch.jit.is_scripting():
-        return adjust_brightness_image(inpt, brightness_factor=brightness_factor)
 
     _log_api_usage_once(adjust_brightness)
 
@@ -137,9 +128,6 @@ def adjust_brightness_video(video: torch.Tensor, brightness_factor: float) -> to
 
 def adjust_saturation(inpt: torch.Tensor, saturation_factor: float) -> torch.Tensor:
     """Adjust saturation."""
-    if torch.jit.is_scripting():
-        return adjust_saturation_image(inpt, saturation_factor=saturation_factor)
-
     _log_api_usage_once(adjust_saturation)
 
     kernel = _get_kernel(adjust_saturation, type(inpt))
@@ -176,9 +164,6 @@ def adjust_saturation_video(video: torch.Tensor, saturation_factor: float) -> to
 
 def adjust_contrast(inpt: torch.Tensor, contrast_factor: float) -> torch.Tensor:
     """See :class:`~torchvision.transforms.RandomAutocontrast`"""
-    if torch.jit.is_scripting():
-        return adjust_contrast_image(inpt, contrast_factor=contrast_factor)
-
     _log_api_usage_once(adjust_contrast)
 
     kernel = _get_kernel(adjust_contrast, type(inpt))
@@ -215,9 +200,6 @@ def adjust_contrast_video(video: torch.Tensor, contrast_factor: float) -> torch.
 
 def adjust_sharpness(inpt: torch.Tensor, sharpness_factor: float) -> torch.Tensor:
     """See :class:`~torchvision.transforms.RandomAdjustSharpness`"""
-    if torch.jit.is_scripting():
-        return adjust_sharpness_image(inpt, sharpness_factor=sharpness_factor)
-
     _log_api_usage_once(adjust_sharpness)
 
     kernel = _get_kernel(adjust_sharpness, type(inpt))
@@ -288,9 +270,6 @@ def adjust_sharpness_video(video: torch.Tensor, sharpness_factor: float) -> torc
 
 def adjust_hue(inpt: torch.Tensor, hue_factor: float) -> torch.Tensor:
     """Adjust hue"""
-    if torch.jit.is_scripting():
-        return adjust_hue_image(inpt, hue_factor=hue_factor)
-
     _log_api_usage_once(adjust_hue)
 
     kernel = _get_kernel(adjust_hue, type(inpt))
@@ -406,9 +385,6 @@ def adjust_hue_video(video: torch.Tensor, hue_factor: float) -> torch.Tensor:
 
 def adjust_gamma(inpt: torch.Tensor, gamma: float, gain: float = 1) -> torch.Tensor:
     """Adjust gamma."""
-    if torch.jit.is_scripting():
-        return adjust_gamma_image(inpt, gamma=gamma, gain=gain)
-
     _log_api_usage_once(adjust_gamma)
 
     kernel = _get_kernel(adjust_gamma, type(inpt))
@@ -446,9 +422,6 @@ def adjust_gamma_video(video: torch.Tensor, gamma: float, gain: float = 1) -> to
 
 def posterize(inpt: torch.Tensor, bits: int) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomPosterize` for details."""
-    if torch.jit.is_scripting():
-        return posterize_image(inpt, bits=bits)
-
     _log_api_usage_once(posterize)
 
     kernel = _get_kernel(posterize, type(inpt))
@@ -483,9 +456,6 @@ def posterize_video(video: torch.Tensor, bits: int) -> torch.Tensor:
 
 def solarize(inpt: torch.Tensor, threshold: float) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomSolarize` for details."""
-    if torch.jit.is_scripting():
-        return solarize_image(inpt, threshold=threshold)
-
     _log_api_usage_once(solarize)
 
     kernel = _get_kernel(solarize, type(inpt))
@@ -511,9 +481,6 @@ def solarize_video(video: torch.Tensor, threshold: float) -> torch.Tensor:
 
 def autocontrast(inpt: torch.Tensor) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomAutocontrast` for details."""
-    if torch.jit.is_scripting():
-        return autocontrast_image(inpt)
-
     _log_api_usage_once(autocontrast)
 
     kernel = _get_kernel(autocontrast, type(inpt))
@@ -561,9 +528,6 @@ def autocontrast_video(video: torch.Tensor) -> torch.Tensor:
 
 def equalize(inpt: torch.Tensor) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomEqualize` for details."""
-    if torch.jit.is_scripting():
-        return equalize_image(inpt)
-
     _log_api_usage_once(equalize)
 
     kernel = _get_kernel(equalize, type(inpt))
@@ -651,9 +615,6 @@ def equalize_video(video: torch.Tensor) -> torch.Tensor:
 
 def invert(inpt: torch.Tensor) -> torch.Tensor:
     """See :func:`~torchvision.transforms.v2.RandomInvert`."""
-    if torch.jit.is_scripting():
-        return invert_image(inpt)
-
     _log_api_usage_once(invert)
 
     kernel = _get_kernel(invert, type(inpt))
@@ -702,9 +663,6 @@ def permute_channels(inpt: torch.Tensor, permutation: list[int]) -> torch.Tensor
     Raises:
         ValueError: If ``len(permutation)`` doesn't match the number of channels in the input.
     """
-    if torch.jit.is_scripting():
-        return permute_channels_image(inpt, permutation=permutation)
-
     _log_api_usage_once(permute_channels)
 
     kernel = _get_kernel(permute_channels, type(inpt))

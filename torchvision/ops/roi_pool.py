@@ -3,7 +3,6 @@ from typing import Union
 import torch
 import torch.fx
 from torch import nn, Tensor
-from torch.jit.annotations import BroadcastingList2
 from torch.nn.modules.utils import _pair
 from torchvision.extension import _assert_has_ops
 
@@ -15,7 +14,7 @@ from ._utils import check_roi_boxes_shape, convert_boxes_to_roi_format
 def roi_pool(
     input: Tensor,
     boxes: Union[Tensor, list[Tensor]],
-    output_size: BroadcastingList2[int],
+    output_size: Union[int, tuple[int, int], list[int]],
     spatial_scale: float = 1.0,
 ) -> Tensor:
     """
@@ -41,8 +40,7 @@ def roi_pool(
     Returns:
         Tensor[K, C, output_size[0], output_size[1]]: The pooled RoIs.
     """
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(roi_pool)
+    _log_api_usage_once(roi_pool)
     _assert_has_ops()
     check_roi_boxes_shape(boxes)
     rois = boxes
@@ -58,7 +56,7 @@ class RoIPool(nn.Module):
     See :func:`roi_pool`.
     """
 
-    def __init__(self, output_size: BroadcastingList2[int], spatial_scale: float):
+    def __init__(self, output_size: Union[int, tuple[int, int], list[int]], spatial_scale: float):
         super().__init__()
         _log_api_usage_once(self)
         self.output_size = output_size

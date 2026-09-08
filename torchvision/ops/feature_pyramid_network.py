@@ -141,34 +141,6 @@ class FeaturePyramidNetwork(nn.Module):
             error_msgs,
         )
 
-    def get_result_from_inner_blocks(self, x: Tensor, idx: int) -> Tensor:
-        """
-        This is equivalent to self.inner_blocks[idx](x),
-        but torchscript doesn't support this yet
-        """
-        num_blocks = len(self.inner_blocks)
-        if idx < 0:
-            idx += num_blocks
-        out = x
-        for i, module in enumerate(self.inner_blocks):
-            if i == idx:
-                out = module(x)
-        return out
-
-    def get_result_from_layer_blocks(self, x: Tensor, idx: int) -> Tensor:
-        """
-        This is equivalent to self.layer_blocks[idx](x),
-        but torchscript doesn't support this yet
-        """
-        num_blocks = len(self.layer_blocks)
-        if idx < 0:
-            idx += num_blocks
-        out = x
-        for i, module in enumerate(self.layer_blocks):
-            if i == idx:
-                out = module(x)
-        return out
-
     def forward(self, x: dict[str, Tensor]) -> dict[str, Tensor]:
         """
         Computes the FPN for a set of feature maps.
@@ -184,16 +156,16 @@ class FeaturePyramidNetwork(nn.Module):
         names = list(x.keys())
         x = list(x.values())
 
-        last_inner = self.get_result_from_inner_blocks(x[-1], -1)
+        last_inner = self.inner_blocks[-1](x[-1])
         results = []
-        results.append(self.get_result_from_layer_blocks(last_inner, -1))
+        results.append(self.layer_blocks[-1](last_inner))
 
         for idx in range(len(x) - 2, -1, -1):
-            inner_lateral = self.get_result_from_inner_blocks(x[idx], idx)
+            inner_lateral = self.inner_blocks[idx](x[idx])
             feat_shape = inner_lateral.shape[-2:]
             inner_top_down = F.interpolate(last_inner, size=feat_shape, mode="nearest")
             last_inner = inner_lateral + inner_top_down
-            results.insert(0, self.get_result_from_layer_blocks(last_inner, idx))
+            results.insert(0, self.layer_blocks[idx](last_inner))
 
         if self.extra_blocks is not None:
             results, names = self.extra_blocks(results, x, names)

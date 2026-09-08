@@ -7,7 +7,6 @@ from torchvision import tv_tensors
 from torchvision.transforms import functional as _F
 
 
-@torch.jit.unused
 def to_image(inpt: Union[torch.Tensor, PIL.Image.Image, np.ndarray]) -> tv_tensors.Image:
     """See :class:`~torchvision.transforms.v2.ToImage` for details."""
     if isinstance(inpt, np.ndarray):

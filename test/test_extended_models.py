@@ -352,7 +352,7 @@ def test_schema_meta_validation(model_fn):
     + TM.list_model_fns(models.optical_flow),
 )
 @run_if_test_with_extended
-def test_transforms_jit(model_fn):
+def test_transforms(model_fn):
     model_name = model_fn.__name__
     weights_enum = get_model_weights(model_fn)
     if len(weights_enum) == 0:
@@ -394,7 +394,7 @@ def test_transforms_jit(model_fn):
     for w in weights_enum:
         transforms = w.transforms()
         try:
-            TM._check_jit_scriptable(transforms, args)
+            transforms(*args)
         except Exception:
             problematic_weights.append(w)
 

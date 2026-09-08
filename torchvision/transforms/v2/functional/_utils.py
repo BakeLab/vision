@@ -6,7 +6,7 @@ import torch
 from torchvision import tv_tensors
 
 _FillType = Union[int, float, Sequence[int], Sequence[float], None]
-_FillTypeJIT = Optional[list[float]]
+_FillTypeNormalized = Optional[Union[int, float, list[float]]]
 
 
 def is_pure_tensor(inpt: Any) -> bool:

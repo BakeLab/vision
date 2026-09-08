@@ -13,9 +13,6 @@ from ._utils import _get_kernel, _register_kernel_internal, is_pure_tensor
 
 
 def get_dimensions(inpt: torch.Tensor) -> list[int]:
-    if torch.jit.is_scripting():
-        return get_dimensions_image(inpt)
-
     _log_api_usage_once(get_dimensions)
 
     kernel = _get_kernel(get_dimensions, type(inpt))
@@ -45,9 +42,6 @@ def get_dimensions_video(video: torch.Tensor) -> list[int]:
 
 
 def get_num_channels(inpt: torch.Tensor) -> int:
-    if torch.jit.is_scripting():
-        return get_num_channels_image(inpt)
-
     _log_api_usage_once(get_num_channels)
 
     kernel = _get_kernel(get_num_channels, type(inpt))
@@ -81,9 +75,6 @@ get_image_num_channels = get_num_channels
 
 
 def get_size(inpt: torch.Tensor) -> list[int]:
-    if torch.jit.is_scripting():
-        return get_size_image(inpt)
-
     _log_api_usage_once(get_size)
 
     kernel = _get_kernel(get_size, type(inpt))
@@ -128,9 +119,6 @@ def get_size_keypoints(keypoints: tv_tensors.KeyPoints) -> list[int]:
 
 
 def get_num_frames(inpt: torch.Tensor) -> int:
-    if torch.jit.is_scripting():
-        return get_num_frames_video(inpt)
-
     _log_api_usage_once(get_num_frames)
 
     kernel = _get_kernel(get_num_frames, type(inpt))
@@ -375,15 +363,14 @@ def convert_bounding_box_format(
     if new_format is None:
         raise TypeError("convert_bounding_box_format() missing 1 required argument: 'new_format'")
 
-    if not torch.jit.is_scripting():
-        _log_api_usage_once(convert_bounding_box_format)
+    _log_api_usage_once(convert_bounding_box_format)
 
     if isinstance(old_format, str):
         old_format = BoundingBoxFormat[old_format.upper()]
     if isinstance(new_format, str):
         new_format = BoundingBoxFormat[new_format.upper()]
 
-    if torch.jit.is_scripting() or is_pure_tensor(inpt):
+    if is_pure_tensor(inpt):
         if old_format is None:
             raise ValueError("For pure tensor inputs, `old_format` has to be passed.")
         return _convert_bounding_box_format(inpt, old_format=old_format, new_format=new_format, inplace=inplace)
@@ -667,13 +654,12 @@ def clamp_bounding_boxes(
     clamping_mode: Union[CLAMPING_MODE_TYPE, str] = "auto",
 ) -> torch.Tensor:
     """See :func:`~torchvision.transforms.v2.ClampBoundingBoxes` for details."""
-    if not torch.jit.is_scripting():
-        _log_api_usage_once(clamp_bounding_boxes)
+    _log_api_usage_once(clamp_bounding_boxes)
 
     if clamping_mode is not None and clamping_mode not in ("soft", "hard", "auto"):
         raise ValueError(f"clamping_mode must be soft, hard, auto or None, got {clamping_mode}")
 
-    if torch.jit.is_scripting() or is_pure_tensor(inpt):
+    if is_pure_tensor(inpt):
 
         if format is None or canvas_size is None or (clamping_mode is not None and clamping_mode == "auto"):
             raise ValueError("For pure tensor inputs, `format`, `canvas_size` and `clamping_mode` have to be passed.")
@@ -724,10 +710,9 @@ def clamp_keypoints(
     canvas_size: Optional[tuple[int, int]] = None,
 ) -> torch.Tensor:
     """See :func:`~torchvision.transforms.v2.ClampKeyPoints` for details."""
-    if not torch.jit.is_scripting():
-        _log_api_usage_once(clamp_keypoints)
+    _log_api_usage_once(clamp_keypoints)
 
-    if torch.jit.is_scripting() or is_pure_tensor(inpt):
+    if is_pure_tensor(inpt):
 
         if canvas_size is None:
             raise ValueError("For pure tensor inputs, `canvas_size` has to be passed.")

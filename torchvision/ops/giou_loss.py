@@ -39,8 +39,7 @@ def generalized_box_iou_loss(
 
     # Original implementation from https://github.com/facebookresearch/fvcore/blob/bfff2ef/fvcore/nn/giou_loss.py
 
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(generalized_box_iou_loss)
+    _log_api_usage_once(generalized_box_iou_loss)
 
     boxes1 = _upcast_non_float(boxes1)
     boxes2 = _upcast_non_float(boxes2)

@@ -11,9 +11,6 @@ from torchvision.transforms.v2 import Transform
 class Compose(Transform):
     """Composes several transforms together.
 
-    This transform does not support torchscript.
-    Please, see the note below.
-
     Args:
         transforms (list of ``Transform`` objects): list of transforms to compose.
 
@@ -23,18 +20,6 @@ class Compose(Transform):
         >>>     transforms.PILToTensor(),
         >>>     transforms.ConvertImageDtype(torch.float),
         >>> ])
-
-    .. note::
-        In order to script the transformations, please use ``torch.nn.Sequential`` as below.
-
-        >>> transforms = torch.nn.Sequential(
-        >>>     transforms.CenterCrop(10),
-        >>>     transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        >>> )
-        >>> scripted_transforms = torch.jit.script(transforms)
-
-        Make sure to use only scriptable transformations, i.e. that work with ``torch.Tensor``, does not require
-        `lambda` functions or ``PIL.Image``.
 
     """
 
@@ -63,18 +48,6 @@ class Compose(Transform):
 class RandomApply(Transform):
     """Apply randomly a list of transformations with a given probability.
 
-    .. note::
-        In order to script the transformation, please use ``torch.nn.ModuleList`` as input instead of list/tuple of
-        transforms as shown below:
-
-        >>> transforms = transforms.RandomApply(torch.nn.ModuleList([
-        >>>     transforms.ColorJitter(),
-        >>> ]), p=0.3)
-        >>> scripted_transforms = torch.jit.script(transforms)
-
-        Make sure to use only scriptable transformations, i.e. that work with ``torch.Tensor``, does not require
-        `lambda` functions or ``PIL.Image``.
-
     Args:
         transforms (sequence or torch.nn.Module): list of transformations
         p (float): probability of applying the list of transforms
@@ -94,9 +67,6 @@ class RandomApply(Transform):
         if not (0.0 <= p <= 1.0):
             raise ValueError("`p` should be a floating point value in the interval [0.0, 1.0].")
         self.p = p
-
-    def _extract_params_for_v1_transform(self) -> dict[str, Any]:
-        return {"transforms": self.transforms, "p": self.p}
 
     def forward(self, *inputs: Any) -> Any:
         needs_unpacking = len(inputs) > 1
@@ -118,8 +88,6 @@ class RandomApply(Transform):
 
 class RandomChoice(Transform):
     """Apply single transformation randomly picked from a list.
-
-    This transform does not support torchscript.
 
     Args:
         transforms (sequence or torch.nn.Module): list of transformations
@@ -156,8 +124,6 @@ class RandomChoice(Transform):
 
 class RandomOrder(Transform):
     """Apply a list of transformations in a random order.
-
-    This transform does not support torchscript.
 
     Args:
         transforms (sequence or torch.nn.Module): list of transformations

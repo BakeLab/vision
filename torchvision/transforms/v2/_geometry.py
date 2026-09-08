@@ -86,8 +86,6 @@ class Resize(Transform):
             - If size is None, the output shape is determined by the ``max_size``
               parameter.
 
-            .. note::
-                In torchscript mode size as single int is not supported, use a sequence of length 1: ``[size, ]``.
         interpolation (str or InterpolationMode, optional): Desired interpolation enum defined by
             :class:`torchvision.transforms.v2.InterpolationMode`.
             Accepted string values are ``"nearest"``, ``"nearest-exact"``, ``"bilinear"``, ``"bicubic"``,
@@ -104,8 +102,7 @@ class Resize(Transform):
               than ``max_size`` after being resized according to ``size``,
               ``size`` will be overruled so that the longer edge is equal to
               ``max_size``. As a result, the smaller edge may be shorter than
-              ``size``. This is only supported if ``size`` is an int (or a
-              sequence of length 1 in torchscript mode).
+              ``size``. This is only supported if ``size`` is an int or a sequence of length 1.
             - If ``size`` is None: the longer edge of the image will be matched
               to max_size.  i.e, if height > width, then image will be rescaled
               to (max_size, max_size * width / height).
@@ -215,8 +212,6 @@ class RandomResizedCrop(Transform):
             int instead of sequence like (h, w), a square output size ``(size, size)`` is
             made. If provided a sequence of length 1, it will be interpreted as (size[0], size[0]).
 
-            .. note::
-                In torchscript mode size as single int is not supported, use a sequence of length 1: ``[size, ]``.
         scale (tuple of float, optional): Specifies the lower and upper bounds for the random area of the crop,
             before resizing. The scale is defined with respect to the area of the original image.
         ratio (tuple of float, optional): lower and upper bounds for the random aspect ratio of the crop, before
@@ -439,9 +434,6 @@ class Pad(Transform):
             on left/right and top/bottom respectively. If a sequence of length 4 is provided
             this is the padding for the left, top, right and bottom borders respectively.
 
-            .. note::
-                In torchscript mode padding as single int is not supported, use a sequence of
-                length 1: ``[padding, ]``.
         fill (number or tuple or dict, optional): Pixel fill value used when the  ``padding_mode`` is constant.
             Default is 0. If a tuple of length 3, it is used to fill R, G, B channels respectively.
             Fill value can be also a dictionary mapping data type to the fill value, e.g.
@@ -464,14 +456,6 @@ class Pad(Transform):
     """
 
     _v1_transform_cls = _transforms.Pad
-
-    def _extract_params_for_v1_transform(self) -> dict[str, Any]:
-        params = super()._extract_params_for_v1_transform()
-
-        if not (params["fill"] is None or isinstance(params["fill"], (int, float))):
-            raise ValueError(f"{type(self).__name__}() can only be scripted for a scalar `fill`, but got {self.fill}.")
-
-        return params
 
     def __init__(
         self,
@@ -798,9 +782,6 @@ class RandomCrop(Transform):
             on left/right and top/bottom respectively. If a sequence of length 4 is provided
             this is the padding for the left, top, right and bottom borders respectively.
 
-            .. note::
-                In torchscript mode padding as single int is not supported, use a sequence of
-                length 1: ``[padding, ]``.
         pad_if_needed (boolean, optional): It will pad the image if smaller than the
             desired size to avoid raising an exception. Since cropping is done
             after padding, the padding seems to be done at a random offset.
@@ -826,20 +807,6 @@ class RandomCrop(Transform):
     """
 
     _v1_transform_cls = _transforms.RandomCrop
-
-    def _extract_params_for_v1_transform(self) -> dict[str, Any]:
-        params = super()._extract_params_for_v1_transform()
-
-        if not (params["fill"] is None or isinstance(params["fill"], (int, float))):
-            raise ValueError(f"{type(self).__name__}() can only be scripted for a scalar `fill`, but got {self.fill}.")
-
-        padding = self.padding
-        if padding is not None:
-            pad_left, pad_right, pad_top, pad_bottom = padding
-            padding = [pad_left, pad_top, pad_right, pad_bottom]
-        params["padding"] = padding
-
-        return params
 
     def __init__(
         self,

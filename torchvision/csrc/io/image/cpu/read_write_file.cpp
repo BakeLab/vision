@@ -142,8 +142,8 @@ torch::stable::Tensor write_file(
 
 STABLE_TORCH_LIBRARY_FRAGMENT(image, m) {
   m.def("read_file(str filename) -> Tensor");
-  // write_file returns its input so TorchScript DCE keeps the call alive
-  // since a stable def cannot express AliasAnalysisKind::CONSERVATIVE:
+  // write_file returns its input because a stable def cannot express
+  // AliasAnalysisKind::CONSERVATIVE:
   // https://github.com/pytorch/pytorch/issues/189309
   m.def("write_file(str filename, Tensor data) -> Tensor");
 }

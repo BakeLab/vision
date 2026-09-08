@@ -7,8 +7,7 @@ Operators
 
 :mod:`torchvision.ops` implements operators, losses and layers that are specific for Computer Vision.
 
-.. note::
-  All operators have native support for TorchScript.
+
 
 
 Detection and Segmentation Operators

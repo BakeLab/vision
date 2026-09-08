@@ -27,14 +27,14 @@ from torchvision.utils import _log_api_usage_once
 
 from ._meta import _get_size_image_pil, clamp_bounding_boxes, convert_bounding_box_format
 
-from ._utils import _FillTypeJIT, _get_kernel, _register_five_ten_crop_kernel_internal, _register_kernel_internal
+from ._utils import _FillTypeNormalized, _get_kernel, _register_five_ten_crop_kernel_internal, _register_kernel_internal
 
 
 _INTERPOLATION_STRING_TO_MODE: dict[str, InterpolationMode] = {m.value: m for m in InterpolationMode}
 
 
 def _check_interpolation(interpolation: Union[str, InterpolationMode, int]) -> InterpolationMode:
-    if not torch.jit.is_scripting() and isinstance(interpolation, str):
+    if isinstance(interpolation, str):
         if interpolation not in _INTERPOLATION_STRING_TO_MODE:
             raise ValueError(
                 f"Invalid interpolation mode: '{interpolation}'. "
@@ -53,9 +53,6 @@ def _check_interpolation(interpolation: Union[str, InterpolationMode, int]) -> I
 
 def horizontal_flip(inpt: torch.Tensor) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomHorizontalFlip` for details."""
-    if torch.jit.is_scripting():
-        return horizontal_flip_image(inpt)
-
     _log_api_usage_once(horizontal_flip)
 
     kernel = _get_kernel(horizontal_flip, type(inpt))
@@ -141,9 +138,6 @@ def horizontal_flip_video(video: torch.Tensor) -> torch.Tensor:
 
 def vertical_flip(inpt: torch.Tensor) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomVerticalFlip` for details."""
-    if torch.jit.is_scripting():
-        return vertical_flip_image(inpt)
-
     _log_api_usage_once(vertical_flip)
 
     kernel = _get_kernel(vertical_flip, type(inpt))
@@ -241,7 +235,7 @@ def _compute_resized_output_size(
     elif max_size is not None and size is not None and len(size) != 1:
         raise ValueError(
             "max_size should only be passed if size is None or specifies the length of the smaller edge, "
-            "i.e. size should be an int or a sequence of length 1 in torchscript mode."
+            "i.e. size should be an int or a sequence of length 1."
         )
     return __compute_resized_output_size(canvas_size, size=size, max_size=max_size, allow_size_none=True)
 
@@ -254,9 +248,6 @@ def resize(
     antialias: Optional[bool] = True,
 ) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.Resize` for details."""
-    if torch.jit.is_scripting():
-        return resize_image(inpt, size=size, interpolation=interpolation, max_size=max_size, antialias=antialias)
-
     _log_api_usage_once(resize)
 
     kernel = _get_kernel(resize, type(inpt))
@@ -264,12 +255,11 @@ def resize(
 
 
 # This is an internal helper method for resize_image. We should put it here instead of keeping it
-# inside resize_image due to torchscript.
 # uint8 dtype support for bilinear and bicubic is limited to cpu and
 # according to our benchmarks on eager, non-AVX x86 CPUs should still prefer u8->f32->interpolate->u8 path for bilinear
 def _do_native_uint8_resize_on_cpu(interpolation: InterpolationMode) -> bool:
     if interpolation == InterpolationMode.BILINEAR:
-        if torch.compiler.is_compiling() or torch.jit.is_scripting():
+        if torch.compiler.is_compiling():
             return True
         else:
             return torch.backends.cpu.get_cpu_capability() in ("AVX2", "AVX512") or platform.machine() in (
@@ -620,22 +610,10 @@ def affine(
     scale: float,
     shear: list[float],
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.NEAREST,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     center: Optional[list[float]] = None,
 ) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomAffine` for details."""
-    if torch.jit.is_scripting():
-        return affine_image(
-            inpt,
-            angle=angle,
-            translate=translate,
-            scale=scale,
-            shear=shear,
-            interpolation=interpolation,
-            fill=fill,
-            center=center,
-        )
-
     _log_api_usage_once(affine)
 
     kernel = _get_kernel(affine, type(inpt))
@@ -766,7 +744,7 @@ def _get_inverse_affine_matrix(
 
 
 def _compute_affine_output_size(matrix: list[float], w: int, h: int) -> tuple[int, int]:
-    if torch.compiler.is_compiling() and not torch.jit.is_scripting():
+    if torch.compiler.is_compiling():
         return _compute_affine_output_size_python(matrix, w, h)
     else:
         return _compute_affine_output_size_tensor(matrix, w, h)
@@ -830,7 +808,7 @@ def _compute_affine_output_size_python(matrix: list[float], w: int, h: int) -> t
     return int(nw), int(nh)  # w, h
 
 
-def _apply_grid_transform(img: torch.Tensor, grid: torch.Tensor, mode: str, fill: _FillTypeJIT) -> torch.Tensor:
+def _apply_grid_transform(img: torch.Tensor, grid: torch.Tensor, mode: str, fill: _FillTypeNormalized) -> torch.Tensor:
     input_shape = img.shape
     output_height, output_width = grid.shape[1], grid.shape[2]
     num_channels, input_height, input_width = input_shape[-3:]
@@ -881,7 +859,7 @@ def _assert_grid_transform_inputs(
     image: torch.Tensor,
     matrix: Optional[list[float]],
     interpolation: str,
-    fill: _FillTypeJIT,
+    fill: _FillTypeNormalized,
     supported_interpolation_modes: list[str],
     coeffs: Optional[list[float]] = None,
 ) -> None:
@@ -946,7 +924,7 @@ def affine_image(
     scale: float,
     shear: list[float],
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.NEAREST,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     center: Optional[list[float]] = None,
 ) -> torch.Tensor:
     interpolation = _check_interpolation(interpolation)
@@ -979,7 +957,7 @@ def _affine_image_pil(
     scale: float,
     shear: list[float],
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.NEAREST,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     center: Optional[list[float]] = None,
 ) -> PIL.Image.Image:
     interpolation = _check_interpolation(interpolation)
@@ -1270,7 +1248,7 @@ def affine_mask(
     translate: list[float],
     scale: float,
     shear: list[float],
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     center: Optional[list[float]] = None,
 ) -> torch.Tensor:
     if mask.ndim < 3:
@@ -1303,7 +1281,7 @@ def _affine_mask_dispatch(
     translate: list[float],
     scale: float,
     shear: list[float],
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     center: Optional[list[float]] = None,
     **kwargs,
 ) -> tv_tensors.Mask:
@@ -1327,7 +1305,7 @@ def affine_video(
     scale: float,
     shear: list[float],
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.NEAREST,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     center: Optional[list[float]] = None,
 ) -> torch.Tensor:
     return affine_image(
@@ -1348,12 +1326,9 @@ def rotate(
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.NEAREST,
     expand: bool = False,
     center: Optional[list[float]] = None,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomRotation` for details."""
-    if torch.jit.is_scripting():
-        return rotate_image(inpt, angle=angle, interpolation=interpolation, expand=expand, fill=fill, center=center)
-
     _log_api_usage_once(rotate)
 
     kernel = _get_kernel(rotate, type(inpt))
@@ -1368,7 +1343,7 @@ def rotate_image(
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.NEAREST,
     expand: bool = False,
     center: Optional[list[float]] = None,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> torch.Tensor:
     angle = angle % 360  # shift angle to [0, 360) range
 
@@ -1416,7 +1391,7 @@ def _rotate_image_pil(
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.NEAREST,
     expand: bool = False,
     center: Optional[list[float]] = None,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> PIL.Image.Image:
     interpolation = _check_interpolation(interpolation)
 
@@ -1498,7 +1473,7 @@ def rotate_mask(
     angle: float,
     expand: bool = False,
     center: Optional[list[float]] = None,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> torch.Tensor:
     if mask.ndim < 3:
         mask = mask.unsqueeze(0)
@@ -1527,7 +1502,7 @@ def _rotate_mask_dispatch(
     angle: float,
     expand: bool = False,
     center: Optional[list[float]] = None,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     **kwargs,
 ) -> tv_tensors.Mask:
     output = rotate_mask(inpt.as_subclass(torch.Tensor), angle=angle, expand=expand, fill=fill, center=center)
@@ -1541,7 +1516,7 @@ def rotate_video(
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.NEAREST,
     expand: bool = False,
     center: Optional[list[float]] = None,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> torch.Tensor:
     return rotate_image(video, angle, interpolation=interpolation, expand=expand, fill=fill, center=center)
 
@@ -1553,9 +1528,6 @@ def pad(
     padding_mode: str = "constant",
 ) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.Pad` for details."""
-    if torch.jit.is_scripting():
-        return pad_image(inpt, padding=padding, fill=fill, padding_mode=padding_mode)
-
     _log_api_usage_once(pad)
 
     kernel = _get_kernel(pad, type(inpt))
@@ -1809,9 +1781,6 @@ def pad_video(
 
 def crop(inpt: torch.Tensor, top: int, left: int, height: int, width: int) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomCrop` for details."""
-    if torch.jit.is_scripting():
-        return crop_image(inpt, top=top, left=left, height=height, width=width)
-
     _log_api_usage_once(crop)
 
     kernel = _get_kernel(crop, type(inpt))
@@ -1938,20 +1907,10 @@ def perspective(
     startpoints: Optional[list[list[int]]],
     endpoints: Optional[list[list[int]]],
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.BILINEAR,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     coefficients: Optional[list[float]] = None,
 ) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomPerspective` for details."""
-    if torch.jit.is_scripting():
-        return perspective_image(
-            inpt,
-            startpoints=startpoints,
-            endpoints=endpoints,
-            interpolation=interpolation,
-            fill=fill,
-            coefficients=coefficients,
-        )
-
     _log_api_usage_once(perspective)
 
     kernel = _get_kernel(perspective, type(inpt))
@@ -2019,7 +1978,7 @@ def perspective_image(
     startpoints: Optional[list[list[int]]],
     endpoints: Optional[list[list[int]]],
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.BILINEAR,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     coefficients: Optional[list[float]] = None,
 ) -> torch.Tensor:
     perspective_coeffs = _perspective_coefficients(startpoints, endpoints, coefficients)
@@ -2046,7 +2005,7 @@ def _perspective_image_pil(
     startpoints: Optional[list[list[int]]],
     endpoints: Optional[list[list[int]]],
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.BILINEAR,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     coefficients: Optional[list[float]] = None,
 ) -> PIL.Image.Image:
     perspective_coeffs = _perspective_coefficients(startpoints, endpoints, coefficients)
@@ -2242,7 +2201,7 @@ def perspective_mask(
     mask: torch.Tensor,
     startpoints: Optional[list[list[int]]],
     endpoints: Optional[list[list[int]]],
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     coefficients: Optional[list[float]] = None,
 ) -> torch.Tensor:
     if mask.ndim < 3:
@@ -2266,7 +2225,7 @@ def _perspective_mask_dispatch(
     inpt: tv_tensors.Mask,
     startpoints: Optional[list[list[int]]],
     endpoints: Optional[list[list[int]]],
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     coefficients: Optional[list[float]] = None,
     **kwargs,
 ) -> tv_tensors.Mask:
@@ -2286,7 +2245,7 @@ def perspective_video(
     startpoints: Optional[list[list[int]]],
     endpoints: Optional[list[list[int]]],
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.BILINEAR,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
     coefficients: Optional[list[float]] = None,
 ) -> torch.Tensor:
     return perspective_image(
@@ -2298,12 +2257,9 @@ def elastic(
     inpt: torch.Tensor,
     displacement: torch.Tensor,
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.BILINEAR,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.ElasticTransform` for details."""
-    if torch.jit.is_scripting():
-        return elastic_image(inpt, displacement=displacement, interpolation=interpolation, fill=fill)
-
     _log_api_usage_once(elastic)
 
     kernel = _get_kernel(elastic, type(inpt))
@@ -2319,7 +2275,7 @@ def elastic_image(
     image: torch.Tensor,
     displacement: torch.Tensor,
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.BILINEAR,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> torch.Tensor:
     if not isinstance(displacement, torch.Tensor):
         raise TypeError("Argument displacement should be a Tensor")
@@ -2360,7 +2316,7 @@ def _elastic_image_pil(
     image: PIL.Image.Image,
     displacement: torch.Tensor,
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.BILINEAR,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> PIL.Image.Image:
     t_img = pil_to_tensor(image)
     output = elastic_image(t_img, displacement, interpolation=interpolation, fill=fill)
@@ -2506,7 +2462,7 @@ def _elastic_bounding_boxes_dispatch(
 def elastic_mask(
     mask: torch.Tensor,
     displacement: torch.Tensor,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> torch.Tensor:
     if mask.ndim < 3:
         mask = mask.unsqueeze(0)
@@ -2524,7 +2480,7 @@ def elastic_mask(
 
 @_register_kernel_internal(elastic, tv_tensors.Mask, tv_tensor_wrapper=False)
 def _elastic_mask_dispatch(
-    inpt: tv_tensors.Mask, displacement: torch.Tensor, fill: _FillTypeJIT = None, **kwargs
+    inpt: tv_tensors.Mask, displacement: torch.Tensor, fill: _FillTypeNormalized = None, **kwargs
 ) -> tv_tensors.Mask:
     output = elastic_mask(inpt.as_subclass(torch.Tensor), displacement=displacement, fill=fill)
     return tv_tensors.wrap(output, like=inpt)
@@ -2535,16 +2491,13 @@ def elastic_video(
     video: torch.Tensor,
     displacement: torch.Tensor,
     interpolation: Union[str, InterpolationMode, int] = InterpolationMode.BILINEAR,
-    fill: _FillTypeJIT = None,
+    fill: _FillTypeNormalized = None,
 ) -> torch.Tensor:
     return elastic_image(video, displacement, interpolation=interpolation, fill=fill)
 
 
 def center_crop(inpt: torch.Tensor, output_size: list[int]) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.CenterCrop` for details."""
-    if torch.jit.is_scripting():
-        return center_crop_image(inpt, output_size=output_size)
-
     _log_api_usage_once(center_crop)
 
     kernel = _get_kernel(center_crop, type(inpt))
@@ -2696,18 +2649,6 @@ def resized_crop(
     antialias: Optional[bool] = True,
 ) -> torch.Tensor:
     """See :class:`~torchvision.transforms.v2.RandomResizedCrop` for details."""
-    if torch.jit.is_scripting():
-        return resized_crop_image(
-            inpt,
-            top=top,
-            left=left,
-            height=height,
-            width=width,
-            size=size,
-            interpolation=interpolation,
-            antialias=antialias,
-        )
-
     _log_api_usage_once(resized_crop)
 
     kernel = _get_kernel(resized_crop, type(inpt))
@@ -2875,9 +2816,6 @@ def five_crop(
     inpt: torch.Tensor, size: list[int]
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """See :class:`~torchvision.transforms.v2.FiveCrop` for details."""
-    if torch.jit.is_scripting():
-        return five_crop_image(inpt, size=size)
-
     _log_api_usage_once(five_crop)
 
     kernel = _get_kernel(five_crop, type(inpt))
@@ -2959,9 +2897,6 @@ def ten_crop(
     torch.Tensor,
 ]:
     """See :class:`~torchvision.transforms.v2.TenCrop` for details."""
-    if torch.jit.is_scripting():
-        return ten_crop_image(inpt, size=size, vertical_flip=vertical_flip)
-
     _log_api_usage_once(ten_crop)
 
     kernel = _get_kernel(ten_crop, type(inpt))

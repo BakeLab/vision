@@ -39,8 +39,7 @@ def distance_box_iou_loss(
 
     # Original Implementation from https://github.com/facebookresearch/detectron2/blob/main/detectron2/layers/losses.py
 
-    if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        _log_api_usage_once(distance_box_iou_loss)
+    _log_api_usage_once(distance_box_iou_loss)
 
     boxes1 = _upcast_non_float(boxes1)
     boxes2 = _upcast_non_float(boxes2)
