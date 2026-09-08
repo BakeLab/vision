@@ -1,4 +1,3 @@
-from ._register_onnx_ops import _register_custom_op
 from .boxes import (
     batched_nms,
     box_area,
@@ -26,9 +25,6 @@ from .ps_roi_pool import ps_roi_pool, PSRoIPool
 from .roi_align import roi_align, RoIAlign
 from .roi_pool import roi_pool, RoIPool
 from .stochastic_depth import stochastic_depth, StochasticDepth
-
-_register_custom_op()
-
 
 __all__ = [
     "masks_to_boxes",

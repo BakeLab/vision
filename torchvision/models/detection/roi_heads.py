@@ -2,7 +2,6 @@ from typing import Optional
 
 import torch
 import torch.nn.functional as F
-import torchvision
 from torch import nn
 from torchvision.ops import boxes as box_ops, roi_align
 
@@ -165,75 +164,6 @@ def keypoints_to_heatmap(keypoints, rois, heatmap_size):
     return heatmaps, valid
 
 
-def _onnx_heatmaps_to_keypoints(
-    maps, maps_i, roi_map_width, roi_map_height, widths_i, heights_i, offset_x_i, offset_y_i
-):
-    num_keypoints = torch.scalar_tensor(maps.size(1), dtype=torch.int64)
-
-    width_correction = widths_i / roi_map_width
-    height_correction = heights_i / roi_map_height
-
-    roi_map = F.interpolate(
-        maps_i[:, None], size=(int(roi_map_height), int(roi_map_width)), mode="bicubic", align_corners=False
-    )[:, 0]
-
-    w = torch.scalar_tensor(roi_map.size(2), dtype=torch.int64)
-    pos = roi_map.reshape(num_keypoints, -1).argmax(dim=1)
-
-    x_int = pos % w
-    y_int = (pos - x_int) // w
-
-    x = (torch.tensor(0.5, dtype=torch.float32) + x_int.to(dtype=torch.float32)) * width_correction.to(
-        dtype=torch.float32
-    )
-    y = (torch.tensor(0.5, dtype=torch.float32) + y_int.to(dtype=torch.float32)) * height_correction.to(
-        dtype=torch.float32
-    )
-
-    xy_preds_i_0 = x + offset_x_i.to(dtype=torch.float32)
-    xy_preds_i_1 = y + offset_y_i.to(dtype=torch.float32)
-    xy_preds_i_2 = torch.ones(xy_preds_i_1.shape, dtype=torch.float32)
-    xy_preds_i = torch.stack(
-        [
-            xy_preds_i_0.to(dtype=torch.float32),
-            xy_preds_i_1.to(dtype=torch.float32),
-            xy_preds_i_2.to(dtype=torch.float32),
-        ],
-        0,
-    )
-
-    # TODO: simplify when indexing without rank will be supported by ONNX
-    base = num_keypoints * num_keypoints + num_keypoints + 1
-    ind = torch.arange(num_keypoints)
-    ind = ind.to(dtype=torch.int64) * base
-    end_scores_i = (
-        roi_map.index_select(1, y_int.to(dtype=torch.int64))
-        .index_select(2, x_int.to(dtype=torch.int64))
-        .view(-1)
-        .index_select(0, ind.to(dtype=torch.int64))
-    )
-
-    return xy_preds_i, end_scores_i
-
-
-@torch.jit._script_if_tracing
-def _onnx_heatmaps_to_keypoints_loop(
-    maps, rois, widths_ceil, heights_ceil, widths, heights, offset_x, offset_y, num_keypoints
-):
-    xy_preds = torch.zeros((0, 3, int(num_keypoints)), dtype=torch.float32, device=maps.device)
-    end_scores = torch.zeros((0, int(num_keypoints)), dtype=torch.float32, device=maps.device)
-
-    for i in range(int(rois.size(0))):
-        xy_preds_i, end_scores_i = _onnx_heatmaps_to_keypoints(
-            maps, maps[i], widths_ceil[i], heights_ceil[i], widths[i], heights[i], offset_x[i], offset_y[i]
-        )
-        xy_preds = torch.cat((xy_preds.to(dtype=torch.float32), xy_preds_i.unsqueeze(0).to(dtype=torch.float32)), 0)
-        end_scores = torch.cat(
-            (end_scores.to(dtype=torch.float32), end_scores_i.to(dtype=torch.float32).unsqueeze(0)), 0
-        )
-    return xy_preds, end_scores
-
-
 def heatmaps_to_keypoints(maps, rois):
     """Extract predicted keypoint locations from heatmaps.
 
@@ -264,20 +194,6 @@ def heatmaps_to_keypoints(maps, rois):
     heights_ceil = heights.ceil()
 
     num_keypoints = maps.shape[1]
-
-    if torchvision._is_tracing():
-        xy_preds, end_scores = _onnx_heatmaps_to_keypoints_loop(
-            maps,
-            rois,
-            widths_ceil,
-            heights_ceil,
-            widths,
-            heights,
-            offset_x,
-            offset_y,
-            torch.scalar_tensor(num_keypoints, dtype=torch.int64),
-        )
-        return xy_preds.permute(0, 2, 1), end_scores
 
     xy_preds = torch.zeros((len(rois), 3, num_keypoints), dtype=torch.float32, device=maps.device)
     end_scores = torch.zeros((len(rois), num_keypoints), dtype=torch.float32, device=maps.device)
@@ -354,31 +270,11 @@ def keypointrcnn_inference(x, boxes):
     return kp_probs, kp_scores
 
 
-def _onnx_expand_boxes(boxes, scale):
-    # type: (Tensor, float) -> Tensor
-    w_half = (boxes[:, 2] - boxes[:, 0]) * 0.5
-    h_half = (boxes[:, 3] - boxes[:, 1]) * 0.5
-    x_c = (boxes[:, 2] + boxes[:, 0]) * 0.5
-    y_c = (boxes[:, 3] + boxes[:, 1]) * 0.5
-
-    w_half = w_half.to(dtype=torch.float32) * scale
-    h_half = h_half.to(dtype=torch.float32) * scale
-
-    boxes_exp0 = x_c - w_half
-    boxes_exp1 = y_c - h_half
-    boxes_exp2 = x_c + w_half
-    boxes_exp3 = y_c + h_half
-    boxes_exp = torch.stack((boxes_exp0, boxes_exp1, boxes_exp2, boxes_exp3), 1)
-    return boxes_exp
-
-
 # the next two functions should be merged inside Masker
 # but are kept here for the moment while we need them
 # temporarily for paste_mask_in_image
 def expand_boxes(boxes, scale):
     # type: (Tensor, float) -> Tensor
-    if torchvision._is_tracing():
-        return _onnx_expand_boxes(boxes, scale)
     w_half = (boxes[:, 2] - boxes[:, 0]) * 0.5
     h_half = (boxes[:, 3] - boxes[:, 1]) * 0.5
     x_c = (boxes[:, 2] + boxes[:, 0]) * 0.5
@@ -395,19 +291,10 @@ def expand_boxes(boxes, scale):
     return boxes_exp
 
 
-@torch.jit.unused
-def expand_masks_tracing_scale(M, padding):
-    # type: (int, int) -> float
-    return torch.tensor(M + 2 * padding).to(torch.float32) / torch.tensor(M).to(torch.float32)
-
-
 def expand_masks(mask, padding):
     # type: (Tensor, int) -> tuple[Tensor, float]
     M = mask.shape[-1]
-    if torch._C._get_tracing_state():  # could not import is_tracing(), not sure why
-        scale = expand_masks_tracing_scale(M, padding)
-    else:
-        scale = float(M + 2 * padding) / M
+    scale = float(M + 2 * padding) / M
     padded_mask = F.pad(mask, (padding,) * 4)
     return padded_mask, scale
 
@@ -437,62 +324,12 @@ def paste_mask_in_image(mask, box, im_h, im_w):
     return im_mask
 
 
-def _onnx_paste_mask_in_image(mask, box, im_h, im_w):
-    one = torch.ones(1, dtype=torch.int64)
-    zero = torch.zeros(1, dtype=torch.int64)
-
-    w = box[2] - box[0] + one
-    h = box[3] - box[1] + one
-    w = torch.max(torch.cat((w, one)))
-    h = torch.max(torch.cat((h, one)))
-
-    # Set shape to [batchxCxHxW]
-    mask = mask.expand((1, 1, mask.size(0), mask.size(1)))
-
-    # Resize mask
-    mask = F.interpolate(mask, size=(int(h), int(w)), mode="bilinear", align_corners=False)
-    mask = mask[0][0]
-
-    x_0 = torch.max(torch.cat((box[0].unsqueeze(0), zero)))
-    x_1 = torch.min(torch.cat((box[2].unsqueeze(0) + one, im_w.unsqueeze(0))))
-    y_0 = torch.max(torch.cat((box[1].unsqueeze(0), zero)))
-    y_1 = torch.min(torch.cat((box[3].unsqueeze(0) + one, im_h.unsqueeze(0))))
-
-    unpaded_im_mask = mask[(y_0 - box[1]) : (y_1 - box[1]), (x_0 - box[0]) : (x_1 - box[0])]
-
-    # TODO : replace below with a dynamic padding when support is added in ONNX
-
-    # pad y
-    zeros_y0 = torch.zeros(y_0, unpaded_im_mask.size(1))
-    zeros_y1 = torch.zeros(im_h - y_1, unpaded_im_mask.size(1))
-    concat_0 = torch.cat((zeros_y0, unpaded_im_mask.to(dtype=torch.float32), zeros_y1), 0)[0:im_h, :]
-    # pad x
-    zeros_x0 = torch.zeros(concat_0.size(0), x_0)
-    zeros_x1 = torch.zeros(concat_0.size(0), im_w - x_1)
-    im_mask = torch.cat((zeros_x0, concat_0, zeros_x1), 1)[:, :im_w]
-    return im_mask
-
-
-@torch.jit._script_if_tracing
-def _onnx_paste_masks_in_image_loop(masks, boxes, im_h, im_w):
-    res_append = torch.zeros(0, im_h, im_w)
-    for i in range(masks.size(0)):
-        mask_res = _onnx_paste_mask_in_image(masks[i][0], boxes[i], im_h, im_w)
-        mask_res = mask_res.unsqueeze(0)
-        res_append = torch.cat((res_append, mask_res))
-    return res_append
-
-
 def paste_masks_in_image(masks, boxes, img_shape, padding=1):
     # type: (Tensor, Tensor, tuple[int, int], int) -> Tensor
     masks, scale = expand_masks(masks, padding=padding)
     boxes = expand_boxes(boxes, scale).to(dtype=torch.int64)
     im_h, im_w = img_shape
 
-    if torchvision._is_tracing():
-        return _onnx_paste_masks_in_image_loop(
-            masks, boxes, torch.scalar_tensor(im_h, dtype=torch.int64), torch.scalar_tensor(im_w, dtype=torch.int64)
-        )[:, None]
     res = [paste_mask_in_image(m[0], b, im_h, im_w) for m, b in zip(masks, boxes)]
     if len(res) > 0:
         ret = torch.stack(res, dim=0)[:, None]
@@ -835,8 +672,6 @@ class RoIHeads(nn.Module):
 
             losses.update(loss_mask)
 
-        # keep none checks in if conditional so torchscript will conditionally
-        # compile each branch
         if (
             self.keypoint_roi_pool is not None
             and self.keypoint_head is not None

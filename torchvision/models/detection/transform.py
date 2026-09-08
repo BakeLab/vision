@@ -2,24 +2,10 @@ import math
 from typing import Any, Optional
 
 import torch
-import torchvision
 from torch import nn, Tensor
 
 from .image_list import ImageList
 from .roi_heads import paste_masks_in_image
-
-
-@torch.jit.unused
-def _get_shape_onnx(image: Tensor) -> Tensor:
-    from torch.onnx import operators
-
-    return operators.shape_as_tensor(image)[-2:]
-
-
-@torch.jit.unused
-def _fake_cast_onnx(v: Tensor) -> float:
-    # ONNX requires a tensor but here we fake its type for JIT.
-    return v
 
 
 def _resize_image_and_masks(
@@ -29,12 +15,7 @@ def _resize_image_and_masks(
     target: Optional[dict[str, Tensor]] = None,
     fixed_size: Optional[tuple[int, int]] = None,
 ) -> tuple[Tensor, Optional[dict[str, Tensor]]]:
-    if torchvision._is_tracing():
-        im_shape = _get_shape_onnx(image)
-    elif torch.jit.is_scripting():
-        im_shape = torch.tensor(image.shape[-2:])
-    else:
-        im_shape = image.shape[-2:]
+    im_shape = image.shape[-2:]
 
     size: Optional[list[int]] = None
     scale_factor: Optional[float] = None
@@ -42,23 +23,9 @@ def _resize_image_and_masks(
     if fixed_size is not None:
         size = [fixed_size[1], fixed_size[0]]
     else:
-        if torch.jit.is_scripting() or torchvision._is_tracing():
-            min_size = torch.min(im_shape).to(dtype=torch.float32)
-            max_size = torch.max(im_shape).to(dtype=torch.float32)
-            self_min_size_f = float(self_min_size)
-            self_max_size_f = float(self_max_size)
-            scale = torch.min(self_min_size_f / min_size, self_max_size_f / max_size)
-
-            if torchvision._is_tracing():
-                scale_factor = _fake_cast_onnx(scale)
-            else:
-                scale_factor = scale.item()
-
-        else:
-            # Do it the normal way
-            min_size = min(im_shape)
-            max_size = max(im_shape)
-            scale_factor = min(self_min_size / min_size, self_max_size / max_size)
+        min_size = min(im_shape)
+        max_size = max(im_shape)
+        scale_factor = min(self_min_size / min_size, self_max_size / max_size)
 
         recompute_scale_factor = True
 
@@ -122,16 +89,7 @@ class GeneralizedRCNNTransform(nn.Module):
         images = [img for img in images]
         if targets is not None:
             # make a copy of targets to avoid modifying it in-place
-            # once torchscript supports dict comprehension
-            # this can be simplified as follows
-            # targets = [{k: v for k,v in t.items()} for t in targets]
-            targets_copy: list[dict[str, Tensor]] = []
-            for t in targets:
-                data: dict[str, Tensor] = {}
-                for k, v in t.items():
-                    data[k] = v
-                targets_copy.append(data)
-            targets = targets_copy
+            targets = [{k: v for k, v in t.items()} for t in targets]
         for i in range(len(images)):
             image = images[i]
             target_index = targets[i] if targets is not None else None
@@ -169,10 +127,7 @@ class GeneralizedRCNNTransform(nn.Module):
         return (image - mean[:, None, None]) / std[:, None, None]
 
     def torch_choice(self, k: list[int]) -> int:
-        """
-        Implements `random.choice` via torch ops, so it can be compiled with
-        TorchScript and we use PyTorch's RNG (not native RNG)
-        """
+        """Implements ``random.choice`` using PyTorch's RNG."""
         index = int(torch.empty(1).uniform_(0.0, float(len(k))).item())
         return k[index]
 
@@ -203,30 +158,6 @@ class GeneralizedRCNNTransform(nn.Module):
             target["keypoints"] = keypoints
         return image, target
 
-    # _onnx_batch_images() is an implementation of
-    # batch_images() that is supported by ONNX tracing.
-    @torch.jit.unused
-    def _onnx_batch_images(self, images: list[Tensor], size_divisible: int = 32) -> Tensor:
-        max_size = []
-        for i in range(images[0].dim()):
-            max_size_i = torch.max(torch.stack([img.shape[i] for img in images]).to(torch.float32)).to(torch.int64)
-            max_size.append(max_size_i)
-        stride = size_divisible
-        max_size[1] = (torch.ceil((max_size[1].to(torch.float32)) / stride) * stride).to(torch.int64)
-        max_size[2] = (torch.ceil((max_size[2].to(torch.float32)) / stride) * stride).to(torch.int64)
-        max_size = tuple(max_size)
-
-        # work around for
-        # pad_img[: img.shape[0], : img.shape[1], : img.shape[2]].copy_(img)
-        # which is not yet supported in onnx
-        padded_imgs = []
-        for img in images:
-            padding = [(s1 - s2) for s1, s2 in zip(max_size, tuple(img.shape))]
-            padded_img = torch.nn.functional.pad(img, (0, padding[2], 0, padding[1], 0, padding[0]))
-            padded_imgs.append(padded_img)
-
-        return torch.stack(padded_imgs)
-
     def max_by_axis(self, the_list: list[list[int]]) -> list[int]:
         maxes = the_list[0]
         for sublist in the_list[1:]:
@@ -235,11 +166,6 @@ class GeneralizedRCNNTransform(nn.Module):
         return maxes
 
     def batch_images(self, images: list[Tensor], size_divisible: int = 32) -> Tensor:
-        if torchvision._is_tracing():
-            # batch_images() does not export well to ONNX
-            # call _onnx_batch_images() instead
-            return self._onnx_batch_images(images, size_divisible)
-
         max_size = self.max_by_axis([list(img.shape) for img in images])
         stride = float(size_divisible)
         max_size = list(max_size)
@@ -293,13 +219,8 @@ def resize_keypoints(keypoints: Tensor, original_size: list[int], new_size: list
     ]
     ratio_h, ratio_w = ratios
     resized_data = keypoints.clone()
-    if torch._C._get_tracing_state():
-        resized_data_0 = resized_data[:, :, 0] * ratio_w
-        resized_data_1 = resized_data[:, :, 1] * ratio_h
-        resized_data = torch.stack((resized_data_0, resized_data_1, resized_data[:, :, 2]), dim=2)
-    else:
-        resized_data[..., 0] *= ratio_w
-        resized_data[..., 1] *= ratio_h
+    resized_data[..., 0] *= ratio_w
+    resized_data[..., 1] *= ratio_h
     return resized_data
 
 
