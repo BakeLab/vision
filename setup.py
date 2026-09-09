@@ -2,6 +2,7 @@ import distutils.command.clean
 import distutils.spawn
 import glob
 import os
+import platform
 import shlex
 import shutil
 import subprocess
@@ -114,9 +115,36 @@ def get_requirements():
 TORCH_TARGET_VERSION = "0x020e000000000000"
 
 
+def get_host_arch_flags():
+    architecture = os.getenv("CPU_ARCHITECTURE")
+    if architecture:
+        flags = {
+            "x86-64-v3": "-march=x86-64-v3",
+            "znver4": "-march=znver4",
+            "znver5": "-march=znver5",
+            "apple-silicon": "-mcpu=apple-m1",
+        }
+        try:
+            return [flags[architecture]]
+        except KeyError as error:
+            raise RuntimeError(
+                f"unsupported CPU_ARCHITECTURE {architecture!r}"
+            ) from error
+    if sys.platform != "linux" or platform.machine() not in ("x86_64", "amd64"):
+        return []
+    try:
+        cpuinfo = Path("/proc/cpuinfo").read_text()
+    except OSError:
+        return []
+    first_processor = cpuinfo.split("\n\n", 1)[0]
+    if "vendor_id" in first_processor and "AuthenticAMD" in first_processor:
+        return ["-march=znver4"]
+    return []
+
+
 def get_macros_and_flags():
     define_macros = []
-    extra_compile_args = {"cxx": []}
+    extra_compile_args = {"cxx": get_host_arch_flags()}
     if BUILD_CUDA_SOURCES:
         if IS_ROCM:
             define_macros += [("WITH_HIP", None)]
