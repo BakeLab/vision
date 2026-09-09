@@ -3,6 +3,32 @@ project(torchvision)
 set(CMAKE_CXX_STANDARD 20)
 file(STRINGS version.txt TORCHVISION_VERSION)
 
+include(CheckCXXCompilerFlag)
+set(_torchvision_x86_baseline_default "")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64)$" AND
+   NOT CMAKE_CROSSCOMPILING)
+  cmake_host_system_information(
+      RESULT _torchvision_processor_description QUERY PROCESSOR_DESCRIPTION)
+  if(_torchvision_processor_description MATCHES "(^| )AMD( |$)")
+    set(_torchvision_x86_baseline_default "znver4")
+  endif()
+  unset(_torchvision_processor_description)
+endif()
+set(TORCHVISION_X86_BASELINE "${_torchvision_x86_baseline_default}" CACHE STRING
+    "-march baseline for x86 builds")
+if(TORCHVISION_X86_BASELINE)
+  check_cxx_compiler_flag(
+      "-march=${TORCHVISION_X86_BASELINE}"
+      TORCHVISION_COMPILER_SUPPORTS_X86_BASELINE)
+  if(NOT TORCHVISION_COMPILER_SUPPORTS_X86_BASELINE)
+    message(FATAL_ERROR
+        "Compiler does not support -march=${TORCHVISION_X86_BASELINE}")
+  endif()
+  string(APPEND CMAKE_C_FLAGS " -march=${TORCHVISION_X86_BASELINE}")
+  string(APPEND CMAKE_CXX_FLAGS " -march=${TORCHVISION_X86_BASELINE}")
+endif()
+unset(_torchvision_x86_baseline_default)
+
 option(WITH_CUDA "Enable CUDA support" OFF)
 option(WITH_MPS "Enable MPS support" OFF)
 option(WITH_PNG "Enable features requiring LibPNG." ON)
