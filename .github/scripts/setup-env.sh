@@ -61,17 +61,26 @@ case $GPU_ARCH_TYPE in
     VERSION_WITHOUT_DOT=$(echo "${GPU_ARCH_VERSION}" | sed 's/\.//')
     GPU_ARCH_ID="cu${VERSION_WITHOUT_DOT}"
     ;;
+  xpu)
+    GPU_ARCH_ID="xpu"
+    ;;
   *)
     echo "Unknown GPU_ARCH_TYPE=${GPU_ARCH_TYPE}"
     exit 1
     ;;
 esac
-PYTORCH_WHEEL_INDEX="https://download.pytorch.org/whl/${CHANNEL}/${GPU_ARCH_ID}"
-pip install --progress-bar=off --pre torch --index-url="${PYTORCH_WHEEL_INDEX}"
+PYTORCH_WHEEL_INDEX="${PYTORCH_WHEEL_INDEX:-https://download.pytorch.org/whl/${CHANNEL}/${GPU_ARCH_ID}}"
+PYTORCH_PACKAGE_SPEC="${PYTORCH_PACKAGE_SPEC:-torch}"
+pip install --progress-bar=off --pre "${PYTORCH_PACKAGE_SPEC}" --index-url="${PYTORCH_WHEEL_INDEX}"
 
-if [[ $GPU_ARCH_TYPE == 'cuda' ]]; then
-  python -c "import torch; exit(not torch.cuda.is_available())"
-fi
+case $GPU_ARCH_TYPE in
+  cuda)
+    python -c "import torch; exit(not torch.cuda.is_available())"
+    ;;
+  xpu)
+    python -c "import torch; exit(not torch.xpu.is_available())"
+    ;;
+esac
 echo '::endgroup::'
 
 echo '::group::Install TorchVision'

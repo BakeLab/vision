@@ -5,7 +5,7 @@ import torch
 import torch.fx
 from torch import nn, Tensor
 from torch._dynamo.utils import is_compile_supported
-from torch.jit.annotations import BroadcastingList2
+from torch._jit_internal import BroadcastingList2
 from torch.nn.modules.utils import _pair
 from torchvision.extension import _assert_has_ops, _has_ops
 

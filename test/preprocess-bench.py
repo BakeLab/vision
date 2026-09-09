@@ -7,7 +7,7 @@ import torch.utils.data
 import torchvision
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
-from torch.utils.model_zoo import tqdm
+from torch.hub import tqdm
 
 
 parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")

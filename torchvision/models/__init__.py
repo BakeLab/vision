@@ -1,3 +1,6 @@
+import importlib.util
+
+
 from .alexnet import *
 from .convnext import *
 from .densenet import *
@@ -14,7 +17,10 @@ from .vgg import *
 from .vision_transformer import *
 from .swin_transformer import *
 from .maxvit import *
-from . import detection, optical_flow, quantization, segmentation, video
+from . import detection, optical_flow, segmentation, video
+
+if importlib.util.find_spec("torch.ao") is not None:
+    from . import quantization
 
 # The Weights and WeightsEnum are developer-facing utils that we make public for
 # downstream libs like torchgeo https://github.com/pytorch/vision/issues/7094
