@@ -67,6 +67,8 @@ pip install -e . -v --no-build-isolation  # leave out the -e switch if you don't
 
 By default, GPU support is built if CUDA is found and `torch.cuda.is_available()` is true. It's possible to force
 building GPU support by setting `FORCE_CUDA=1` environment variable, which is useful when building a docker image.
+An XPU-enabled PyTorch build can be selected in CI with `GPU_ARCH_TYPE=xpu`. Set `PYTORCH_WHEEL_INDEX` and
+`PYTORCH_PACKAGE_SPEC` to test against a specific XPU package source and version.
 
 #### Other development dependencies (some of these are needed to run tests):
 

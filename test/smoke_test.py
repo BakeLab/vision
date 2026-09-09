@@ -115,6 +115,7 @@ def smoke_test_torchvision_resnet50_classify(device: str = "cpu") -> None:
 def main() -> None:
     print(f"torchvision: {torchvision.__version__}")
     print(f"torch.cuda.is_available: {torch.cuda.is_available()}")
+    print(f"torch.xpu.is_available: {torch.xpu.is_available()}")
 
     print(f"{torch.ops.image._jpeg_version() = }")
     if not torch.ops.image._is_compiled_against_turbo():
@@ -141,6 +142,9 @@ def main() -> None:
 
     if torch.backends.mps.is_available():
         smoke_test_torchvision_resnet50_classify("mps")
+
+    if torch.xpu.is_available():
+        smoke_test_torchvision_resnet50_classify("xpu")
 
 
 if __name__ == "__main__":
