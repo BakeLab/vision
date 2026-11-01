@@ -162,6 +162,12 @@ def get_macros_and_flags():
                 nvcc_flags = []
             else:
                 nvcc_flags = shlex.split(NVCC_FLAGS)
+            cuda_version = parse_version(torch.version.cuda) if torch.version.cuda else None
+            if cuda_version is not None and cuda_version.release[:2] == (13, 4):
+                # CUDA 13.4 ICEs on torchvision CUDA sources with C++23.
+                # These sources build with C++20, and this prevents
+                # BuildExtension from appending its C++23 default.
+                nvcc_flags.append("-std=c++20")
         extra_compile_args["nvcc"] = nvcc_flags
 
     if sys.platform == "win32":
