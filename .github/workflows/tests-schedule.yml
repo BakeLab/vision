@@ -15,6 +15,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Failure reporting needs the checked-in issue template even if setup fails.
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Set up python
         uses: actions/setup-python@v6
         with:
@@ -25,9 +29,6 @@ jobs:
 
       - name: SSL
         run: python -c 'import ssl; print(ssl.OPENSSL_VERSION)'
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
 
       - name: TODO REMOVE THIS! Install non pre-release version of mpmath.
         run: pip install "mpmath<1.4"
