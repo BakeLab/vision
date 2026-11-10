@@ -39,29 +39,32 @@ jobs:
 
       - uses: astral-sh/setup-uv@v10.3.0
 
+      - name: Create Python environment
+        run: uv venv --python python3 .venv
+
       - name: Upgrade system packages
-        run: uv pip install --system --upgrade pip setuptools wheel
+        run: uv pip install --python .venv/bin/python --upgrade pip setuptools wheel
 
       - name: SSL
-        run: python3 -c 'import ssl; print(ssl.OPENSSL_VERSION)'
+        run: .venv/bin/python -c 'import ssl; print(ssl.OPENSSL_VERSION)'
 
       - name: TODO REMOVE THIS! Install non pre-release version of mpmath.
-        run: uv pip install --system "mpmath<1.4"
+        run: uv pip install --python .venv/bin/python "mpmath<1.4"
 
       - name: Install torch nightly build
-        run: uv pip install --system --prerelease allow torch --find-links https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
+        run: uv pip install --python .venv/bin/python --prerelease allow torch --find-links https://download.pytorch.org/whl/nightly/cpu/torch_nightly.html
 
       - name: Install torchvision
-        run: uv pip install --system --no-build-isolation --editable .
+        run: uv pip install --python .venv/bin/python --no-build-isolation --editable .
 
       - name: Install all optional dataset requirements
-        run: uv pip install --system scipy pycocotools lmdb gdown
+        run: uv pip install --python .venv/bin/python scipy pycocotools lmdb gdown
 
       - name: Install tests requirements
-        run: uv pip install --system pytest
+        run: uv pip install --python .venv/bin/python pytest
 
       - name: Run tests
-        run: python3 -m pytest -ra -v test/test_datasets_download.py
+        run: .venv/bin/python -m pytest -ra -v test/test_datasets_download.py
 
       - uses: JasonEtco/create-an-issue@v2.4.0
         name: Create issue if download tests failed
