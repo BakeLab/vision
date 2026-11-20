@@ -1,0 +1,84 @@
+name: BakeLab torchvision CUDA wheel
+
+on:
+  push:
+    branches: [trim]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-publish:
+    if: github.repository == 'BakeLab/vision' && github.server_url != 'https://github.com' && github.ref == 'refs/heads/trim'
+    runs-on: [self-hosted, linux, x64, bb, cuda]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+
+      - name: Build and verify against BakeLab PyTorch
+        run: |
+          docker run --rm --gpus all -v "$GITHUB_WORKSPACE:/src" -w /src \
+            -e GITHUB_RUN_ID -e GITHUB_RUN_ATTEMPT \
+            archlinux:base-devel@sha256:97119fd9e21219b02b3c14ba256c9d3c0d031d07fc26c836c41ed793beeb5b74 bash -euo pipefail -c '
+              pacman -Syu --needed --noconfirm cuda cudnn nccl openblas openmp python python-pip ninja libjpeg-turbo libpng
+              python -m venv /tmp/build
+              export PATH="/tmp/build/bin:/opt/cuda/bin:$PATH" CUDA_HOME=/opt/cuda
+              python -c "import sys; assert sys.version_info[:2] == (3,14)"
+              nvcc --version | grep -F "release 13.5,"
+              pip --isolated download --no-deps --only-binary=:all: --pre --dest /tmp/private \
+                --index-url https://gitea.int.bb.pub/api/packages/BakeLab/pypi/simple/ "torch==2.15.*"
+              pip install /tmp/private/torch-*.whl setuptools wheel numpy pillow tqdm packaging
+              python -c "import torch; print(torch.__version__, torch.version.cuda); assert torch.version.cuda == \"13.5\""
+              export FORCE_CUDA=1 TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0+PTX"
+              export BUILD_VERSION="$(cat version.txt)+cu135.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}"
+              out=$(mktemp -d)
+              pip wheel --no-build-isolation --no-deps -w "$out" .
+              cd /tmp
+              pip install --no-deps "$out"/*.whl
+              python -c "import torch, torchvision; boxes=torch.tensor([[0.,0.,1.,1.]],device=\"cuda\"); assert torchvision.ops.nms(boxes, boxes[:,0], 0.5).tolist() == [0]"
+              mkdir -p /src/dist
+              cp "$out"/*.whl /src/dist/
+            '
+
+      - uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Publish to Gitea PyPI
+        run: |
+          python3 - dist/*.whl <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          from urllib.parse import urlencode
+          from urllib.request import Request, urlopen
+
+          endpoint = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
+          separator = "&" if "?" in endpoint else "?"
+          request = Request(
+              endpoint + separator + urlencode({"audience": "https://gitea.int.bb.pub/api/packages"}),
+              headers={
+                  "Authorization": "Bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"],
+                  "Accept": "application/json",
+              },
+          )
+          with urlopen(request, timeout=30) as response:
+              token = json.load(response)["value"]
+          env = os.environ.copy()
+          env["UV_PUBLISH_TOKEN"] = token
+          subprocess.run(
+              [
+                  "uv", "publish", "--publish-url",
+                  "https://gitea.int.bb.pub/api/packages/BakeLab/pypi/",
+                  "--trusted-publishing", "never", "--no-attestations",
+                  *sys.argv[1:],
+              ],
+              check=True,
+              env=env,
+          )
+          PY
