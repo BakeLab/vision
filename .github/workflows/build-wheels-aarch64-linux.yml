@@ -17,6 +17,10 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: build-wheels-aarch64-linux-${{ github.event_name }}-${{ (github.event_name == 'push' || github.event_name == 'pull_request') && (github.event.pull_request.number || github.ref) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+
 jobs:
   generate-matrix:
     uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@main
